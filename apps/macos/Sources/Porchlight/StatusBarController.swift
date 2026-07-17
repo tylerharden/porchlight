@@ -105,7 +105,7 @@ final class StatusBarController: NSObject {
 
         submenu.addItem(.separator())
 
-        let openAddress = NSMenuItem(title: "Open Address", action: #selector(openAddress(_:)), keyEquivalent: "")
+        let openAddress = NSMenuItem(title: displayURL(server.url), action: #selector(openAddress(_:)), keyEquivalent: "")
         openAddress.target = self
         openAddress.representedObject = server.id
         submenu.addItem(openAddress)
@@ -300,5 +300,15 @@ final class StatusBarController: NSObject {
     private func shortened(_ value: String, limit: Int) -> String {
         guard value.count > limit else { return value }
         return String(value.prefix(limit - 1)) + "…"
+    }
+
+    private func displayURL(_ value: String) -> String {
+        guard let url = URL(string: value), let host = url.host else { return value }
+
+        if let port = url.port {
+            return "\(host):\(port)"
+        }
+
+        return host
     }
 }
