@@ -30,22 +30,34 @@ struct GroupDetailView: View {
                     }
 
                     DetailEditorRow(label: "Colour") {
-                        HStack {
-                            ColorPicker("", selection: colorBinding(color))
+                        HStack(spacing: 10) {
+                            Toggle("", isOn: colorEnabledBinding(color))
                                 .labelsHidden()
-                            TextField("#34C759", text: color)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 100)
+
+                            if !color.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                ColorPicker("", selection: colorBinding(color))
+                                    .labelsHidden()
+                                TextField("#34C759", text: color)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 100)
+                            }
                         }
                     }
 
                     DetailEditorRow(label: "Icon") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            TextField("Auto-detect, /path/to/favicon.ico, or file:// URL", text: optionalStringBinding(icon))
-                                .textFieldStyle(.roundedBorder)
-                            Text("Leave blank to auto-detect common project favicons from matching working directories.")
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Toggle("", isOn: iconEnabledBinding(icon))
+                                .labelsHidden()
+
+                            if icon.wrappedValue != nil {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    TextField("Auto-detect, /path/to/favicon.ico, or file:// URL", text: optionalStringBinding(icon))
+                                        .textFieldStyle(.roundedBorder)
+                                    Text("Leave blank to auto-detect common project favicons from matching working directories.")
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
 
@@ -96,10 +108,24 @@ struct GroupDetailView: View {
         )
     }
 
+    private func colorEnabledBinding(_ color: Binding<String>) -> Binding<Bool> {
+        Binding(
+            get: { !color.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty },
+            set: { isEnabled in color.wrappedValue = isEnabled ? "#34C759" : "" }
+        )
+    }
+
+    private func iconEnabledBinding(_ icon: Binding<String?>) -> Binding<Bool> {
+        Binding(
+            get: { icon.wrappedValue != nil },
+            set: { isEnabled in icon.wrappedValue = isEnabled ? "" : nil }
+        )
+    }
+
     private func optionalStringBinding(_ value: Binding<String?>) -> Binding<String> {
         Binding(
             get: { value.wrappedValue ?? "" },
-            set: { value.wrappedValue = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+            set: { value.wrappedValue = $0 }
         )
     }
 }

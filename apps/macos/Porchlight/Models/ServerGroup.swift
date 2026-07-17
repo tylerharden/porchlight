@@ -147,7 +147,11 @@ extension Color {
         let value = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         let scanner = Scanner(string: value)
         var rgb: UInt64 = 0
-        scanner.scanHexInt64(&rgb)
+
+        guard value.count == 6, scanner.scanHexInt64(&rgb) else {
+            self.init(nsColor: .systemGray)
+            return
+        }
 
         self.init(
             red: Double((rgb & 0xFF0000) >> 16) / 255,
