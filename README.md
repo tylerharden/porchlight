@@ -84,6 +84,14 @@ The menu bar dropdown shows:
 
 Settings opens a native window with a `My Servers` section where users can pin frequently used servers. Pinning should update the menu bar dropdown instantly.
 
+During development, the macOS app calls the local debug CLI binary:
+
+```text
+/Users/tyler/Developer/porchlight/cli/target/debug/porchlight
+```
+
+Override this path with `PORCHLIGHT_CLI_PATH` if needed.
+
 ## Current Status
 
 This repository is being pivoted from an early Swift prototype to the final Porchlight architecture:
@@ -110,4 +118,11 @@ Run tests:
 ```bash
 cd cli
 cargo test
+```
+
+Run the macOS menu bar app:
+
+```bash
+cd apps/macos
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" swift run Porchlight
 ```

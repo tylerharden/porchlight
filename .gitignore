@@ -1,4 +1,5 @@
 .DS_Store
 target/
 cli/target/
+apps/macos/.build/
 .netrc
