@@ -386,7 +386,8 @@ private struct TabButton: View {
         } label: {
             VStack(spacing: 4) {
                 if tab == .servers {
-                    Image(nsImage: PorchlightStatusIcon.image(isActive: selectedTab == tab))
+                    Image(nsImage: PorchlightStatusIcon.image(isActive: false))
+                        .renderingMode(.template)
                         .resizable()
                         .frame(width: 13, height: 13)
                 } else {
@@ -396,7 +397,9 @@ private struct TabButton: View {
                 Text(tab.rawValue)
                     .font(.caption2)
             }
-            .frame(minWidth: 58, minHeight: 36)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(minWidth: 66, minHeight: 42)
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
             .background {

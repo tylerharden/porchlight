@@ -7,14 +7,31 @@ struct ServerDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        StatusDot(color: server.isActive ? .green : .gray)
-                        Text(verbatim: "localhost:\(server.port)")
-                            .font(.title2.weight(.semibold))
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            StatusDot(color: server.isActive ? .green : .gray)
+                            Text(verbatim: "localhost:\(server.port)")
+                                .font(.title2.weight(.semibold))
+                        }
+
+                        Spacer()
+
+                        Button {
+                            Task { await viewModel.togglePin(server) }
+                        } label: {
+                            Label(server.pinned ? "Unpin" : "Pin", systemImage: server.pinned ? "pin.fill" : "pin")
+                        }
+                        .labelStyle(.iconOnly)
+                        .help(server.pinned ? "Unpin" : "Pin")
+                    }
+
+                    HStack(spacing: 6) {
                         Text(server.serverType)
                             .foregroundStyle(.secondary)
                         if let group = server.group {
+                            Text("•")
+                                .foregroundStyle(.tertiary)
                             HStack(spacing: 4) {
                                 GroupIconView(icon: server.icon ?? group.icon, color: group.color, size: 12)
                                 Text(group.name)
@@ -24,16 +41,6 @@ struct ServerDetailView: View {
                             GroupIconView(icon: server.icon, color: "#8E8E93", size: 12)
                         }
                     }
-
-                    Spacer()
-
-                    Button {
-                        Task { await viewModel.togglePin(server) }
-                    } label: {
-                        Label(server.pinned ? "Unpin" : "Pin", systemImage: server.pinned ? "pin.fill" : "pin")
-                    }
-                    .labelStyle(.iconOnly)
-                    .help(server.pinned ? "Unpin" : "Pin")
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
