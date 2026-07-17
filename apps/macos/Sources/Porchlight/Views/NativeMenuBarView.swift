@@ -75,7 +75,7 @@ private struct NativeServerMenuLabel: View {
     let server: LocalServer
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             Circle()
                 .fill(server.isActive ? Color.green : Color.gray.opacity(0.55))
                 .frame(width: 7, height: 7)
@@ -84,9 +84,13 @@ private struct NativeServerMenuLabel: View {
                 HStack(spacing: 6) {
                     Text(verbatim: String(server.port))
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
+
                     Text(server.serverType)
-                        .font(.system(size: 11))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(.quaternary.opacity(0.8), in: Capsule())
                 }
 
                 Text(server.locationText)
