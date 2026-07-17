@@ -4,6 +4,7 @@ import AppKit
 final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let cli = PorchlightCLI()
+    private let settingsController = SettingsWindowController()
     private var servers: [LocalServer] = []
     private var refreshTask: Task<Void, Never>?
 
@@ -173,7 +174,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        settingsController.show()
         NSApp.activate(ignoringOtherApps: true)
     }
 
