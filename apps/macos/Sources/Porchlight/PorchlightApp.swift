@@ -2,19 +2,10 @@ import SwiftUI
 
 @main
 struct PorchlightApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var viewModel = ServerListViewModel()
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarView(viewModel: viewModel)
-        } label: {
-            Label("Porchlight", systemImage: viewModel.hasActiveServers ? "lightbulb.fill" : "lightbulb")
-                .task {
-                    await viewModel.start()
-                }
-        }
-        .menuBarExtraStyle(.window)
-
         Settings {
             SettingsView(viewModel: viewModel)
                 .frame(width: 720, height: 460)
