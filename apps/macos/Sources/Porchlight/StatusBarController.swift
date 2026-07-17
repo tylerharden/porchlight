@@ -89,7 +89,8 @@ final class StatusBarController: NSObject {
     }
 
     private func menuItem(for server: LocalServer) -> NSMenuItem {
-        let item = NSMenuItem(title: "\(server.port)  \(server.serverType)", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        item.attributedTitle = serverMenuTitle(server)
         item.image = statusImage(isActive: server.isActive)
         item.submenu = submenu(for: server)
         return item
@@ -106,6 +107,7 @@ final class StatusBarController: NSObject {
         submenu.addItem(.separator())
 
         let openAddress = NSMenuItem(title: displayURL(server.url), action: #selector(openAddress(_:)), keyEquivalent: "")
+        openAddress.attributedTitle = linkTitle(displayURL(server.url))
         openAddress.target = self
         openAddress.representedObject = server.id
         submenu.addItem(openAddress)
@@ -206,6 +208,37 @@ final class StatusBarController: NSObject {
         image.unlockFocus()
         image.isTemplate = false
         return image
+    }
+
+    private func serverMenuTitle(_ server: LocalServer) -> NSAttributedString {
+        let title = NSMutableAttributedString(
+            string: String(server.port),
+            attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
+                .foregroundColor: NSColor.labelColor
+            ]
+        )
+
+        title.append(NSAttributedString(string: "  "))
+        title.append(NSAttributedString(
+            string: server.serverType,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .regular),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+        ))
+
+        return title
+    }
+
+    private func linkTitle(_ value: String) -> NSAttributedString {
+        NSAttributedString(
+            string: value,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
+                .foregroundColor: NSColor.linkColor
+            ]
+        )
     }
 
     @objc private func refreshNow() {
