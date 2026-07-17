@@ -14,7 +14,6 @@ struct MenuBarView: View {
             footer
         }
         .padding(10)
-        .porchlightGlass(cornerRadius: 22)
     }
 
     private var header: some View {
@@ -70,7 +69,7 @@ struct MenuBarView: View {
                     .padding(24)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 0) {
                         ForEach(viewModel.servers) { server in
                             ServerRowView(
                                 server: server,
@@ -79,9 +78,14 @@ struct MenuBarView: View {
                             ) {
                                 Task { await viewModel.kill(server) }
                             }
+                            .padding(.horizontal, 2)
+
+                            if server.id != viewModel.servers.last?.id {
+                                Divider()
+                                    .padding(.leading, 42)
+                            }
                         }
                     }
-                    .padding(1)
                 }
                 .frame(maxHeight: 360)
             }

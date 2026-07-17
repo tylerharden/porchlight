@@ -7,20 +7,17 @@ struct ServerRowView: View {
     var onKill: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .center, spacing: 11) {
+        HStack(alignment: .center, spacing: 8) {
             statusIcon
 
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 7) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
                     Text(verbatim: String(server.port))
-                        .font(.system(size: compact ? 14 : 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: compact ? 13 : 14, weight: .semibold, design: .rounded))
 
                     Text(server.serverType)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.quaternary.opacity(0.7), in: Capsule())
 
                     if server.pinned {
                         Image(systemName: "pin.fill")
@@ -30,7 +27,7 @@ struct ServerRowView: View {
                 }
 
                 Text(server.locationText)
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -40,21 +37,19 @@ struct ServerRowView: View {
 
             actions
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, compact ? 10 : 12)
-        .porchlightGlass(cornerRadius: 14)
+        .padding(.horizontal, 4)
+        .padding(.vertical, compact ? 7 : 9)
+        .contentShape(Rectangle())
         .opacity(server.isActive ? 1 : 0.68)
     }
 
     private var statusIcon: some View {
         ZStack {
             Circle()
-                .fill(server.isActive ? Color.green.opacity(0.16) : Color.gray.opacity(0.12))
-            Circle()
                 .fill(server.isActive ? Color.green : Color.gray.opacity(0.5))
-                .frame(width: 8, height: 8)
+                .frame(width: 7, height: 7)
         }
-        .frame(width: 24, height: 24)
+        .frame(width: 18, height: 18)
     }
 
     private var actions: some View {
@@ -89,8 +84,8 @@ private struct ActionChip: View {
                 }
             }
             .font(.system(size: 10, weight: .semibold))
-            .frame(width: 24, height: 22)
-            .background(.quaternary.opacity(0.75), in: Capsule())
+            .frame(width: 22, height: 20)
+            .background(.quaternary.opacity(0.55), in: Capsule())
         }
         .buttonStyle(.plain)
         .disabled(action == nil || isLoading)
