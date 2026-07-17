@@ -46,6 +46,8 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
         let group = infer_server_group(&process.command, working_directory.as_deref());
         let display_directory = working_directory.as_deref().map(display_directory);
 
+        let start_command = process.command.clone();
+
         servers.push(LocalServer {
             id: server_id(listener.port, working_directory.as_deref()),
             port: listener.port,
@@ -60,7 +62,7 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             url: format!("http://localhost:{}", listener.port),
             pinned: false,
             last_seen_at: None,
-            start_command: None,
+            start_command: Some(start_command),
         });
     }
 

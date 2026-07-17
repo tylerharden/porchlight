@@ -95,9 +95,9 @@ impl AppState {
                 server.pinned = previous
                     .map(|server| server.pinned)
                     .unwrap_or(server.pinned);
-                server.start_command = previous
-                    .and_then(|server| server.start_command.clone())
-                    .or(server.start_command);
+                server.start_command = server.start_command.or_else(|| {
+                    previous.and_then(|server| server.start_command.clone())
+                });
                 server
             })
             .collect::<Vec<_>>();
@@ -390,6 +390,22 @@ mod tests {
 
         assert_eq!(servers.len(), 1);
         assert_eq!(state.recent_servers.len(), 1);
+    }
+
+    #[test]
+    fn keeps_scanned_start_command_for_active_server() {
+        let mut state = AppState {
+            recent_servers: vec![fresh_recent("server", 8000, "/tmp/app")],
+            pinned_servers: vec![],
+        };
+
+        let mut active = server("server", 8000, "/tmp/app", ServerStatus::Active);
+        active.start_command = Some("npm run dev".into());
+
+        let servers = state.merge_servers(vec![active], &Config::default());
+
+        assert_eq!(servers[0].start_command.as_deref(), Some("npm run dev"));
+        assert_eq!(state.recent_servers[0].start_command.as_deref(), Some("npm run dev"));
     }
 
     fn fresh_recent(id: &str, port: u16, working_directory: &str) -> LocalServer {
