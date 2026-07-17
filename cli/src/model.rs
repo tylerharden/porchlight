@@ -125,6 +125,10 @@ pub fn discover_project_icon(working_directory: &str) -> Option<String> {
         "public/favicon.png",
         "public/apple-touch-icon.png",
         "app/favicon.ico",
+        "app/static/favicon.ico",
+        "app/static/favicon.png",
+        "app/static/favicon-32x32.png",
+        "app/static/favicon-16x16.png",
         "src/app/favicon.ico",
         "static/favicon.ico",
         "static/favicon.png",
@@ -281,6 +285,25 @@ mod tests {
         let public = root.join("public");
         std::fs::create_dir_all(&public).unwrap();
         let icon = public.join("favicon.ico");
+        std::fs::write(&icon, []).unwrap();
+
+        assert_eq!(
+            discover_project_icon(root.to_str().unwrap()).as_deref(),
+            Some(icon.to_str().unwrap())
+        );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn discovers_nested_app_static_icon_paths() {
+        let root = std::env::temp_dir().join(format!(
+            "porchlight-nested-icon-test-{}",
+            std::process::id()
+        ));
+        let static_dir = root.join("app/static");
+        std::fs::create_dir_all(&static_dir).unwrap();
+        let icon = static_dir.join("favicon.ico");
         std::fs::write(&icon, []).unwrap();
 
         assert_eq!(
