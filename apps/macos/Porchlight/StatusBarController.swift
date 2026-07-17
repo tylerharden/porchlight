@@ -184,6 +184,10 @@ final class StatusBarController: NSObject {
         return image
     }
 
+    private func serverIconImage(_ server: LocalServer) -> NSImage? {
+        groupIconImage(server.icon ?? server.group?.icon)
+    }
+
     private func menuItem(for server: LocalServer) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
@@ -237,6 +241,7 @@ final class StatusBarController: NSObject {
         let openAddress = NSMenuItem(title: displayURL(server.url), action: #selector(openAddress(_:)), keyEquivalent: "")
         openAddress.target = self
         openAddress.representedObject = server.id
+        openAddress.image = serverIconImage(server)
         submenu.addItem(openAddress)
 
         if server.workingDirectory != nil {
