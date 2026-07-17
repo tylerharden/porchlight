@@ -5,11 +5,20 @@ struct ServerRowView: View {
     var compact = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
+        HStack(alignment: .center, spacing: 11) {
+            statusIcon
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 7) {
                     Text("\(server.port)")
-                        .font(.body.weight(.medium))
+                        .font(.system(size: compact ? 14 : 15, weight: .semibold, design: .rounded))
+
+                    Text(server.serverType)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.quaternary.opacity(0.7), in: Capsule())
 
                     if server.pinned {
                         Image(systemName: "pin.fill")
@@ -19,7 +28,7 @@ struct ServerRowView: View {
                 }
 
                 Text(server.locationText)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -27,46 +36,55 @@ struct ServerRowView: View {
 
             Spacer(minLength: 10)
 
-            VStack(alignment: .trailing, spacing: 6) {
-                HStack(spacing: 6) {
-                    Text(server.serverType)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            actions
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, compact ? 10 : 12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(.quaternary.opacity(0.7), lineWidth: 0.5)
+        }
+        .opacity(server.isActive ? 1 : 0.68)
+    }
 
-                    Circle()
-                        .fill(server.isActive ? Color.green : Color.gray.opacity(0.45))
-                        .frame(width: 8, height: 8)
-                }
+    private var statusIcon: some View {
+        ZStack {
+            Circle()
+                .fill(server.isActive ? Color.green.opacity(0.16) : Color.gray.opacity(0.12))
+            Circle()
+                .fill(server.isActive ? Color.green : Color.gray.opacity(0.5))
+                .frame(width: 8, height: 8)
+        }
+        .frame(width: 24, height: 24)
+    }
 
-                HStack(spacing: 6) {
-                    if server.isActive {
-                        Button("Kill") {}
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                            .disabled(true)
-                    } else {
-                        Button("Start") {}
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                            .disabled(true)
-
-                        Button("Remove") {}
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                            .disabled(true)
-                    }
-                }
-
-                if !server.isActive, let lastSeenAt = server.lastSeenAt {
-                    Text("last seen \(lastSeenAt)")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+    private var actions: some View {
+        HStack(spacing: 5) {
+            if server.isActive {
+                ActionChip(title: "Kill", systemImage: "xmark")
+            } else {
+                ActionChip(title: "Start", systemImage: "play.fill")
+                ActionChip(title: "Remove", systemImage: "minus")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, compact ? 10 : 12)
-        .opacity(server.isActive ? 1 : 0.68)
+    }
+}
+
+private struct ActionChip: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Button {} label: {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: 24, height: 22)
+                .background(.quaternary.opacity(0.75), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(true)
+        .help(title)
     }
 }

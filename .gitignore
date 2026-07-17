@@ -2,4 +2,5 @@
 target/
 cli/target/
 apps/macos/.build/
+apps/macos/.swiftpm/
 .netrc

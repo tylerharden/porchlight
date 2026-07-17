@@ -19,10 +19,14 @@ struct SettingsView: View {
             } else {
                 List(viewModel.servers) { server in
                     ServerRowView(server: server)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(.regularMaterial)
     }
 
     private var header: some View {

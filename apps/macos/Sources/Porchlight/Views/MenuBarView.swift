@@ -6,28 +6,33 @@ struct MenuBarView: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             header
-
-            Divider()
 
             serverList
 
-            
-            Divider()
-
             footer
         }
-        .background(.regularMaterial)
+        .padding(10)
+        .background(.ultraThinMaterial)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.16))
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .frame(width: 30, height: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Porchlight")
-                    .font(.headline)
+                    .font(.system(size: 13, weight: .semibold))
                 Text(summaryText)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
 
@@ -41,13 +46,16 @@ struct MenuBarView: View {
                     Task { await viewModel.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 24, height: 24)
+                        .background(.quaternary.opacity(0.65), in: Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help("Refresh")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 4)
+        .padding(.top, 2)
     }
 
     private var serverList: some View {
@@ -62,13 +70,12 @@ struct MenuBarView: View {
                     .padding(24)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 8) {
                         ForEach(viewModel.servers) { server in
                             ServerRowView(server: server, compact: true)
-                            Divider()
-                                .padding(.leading, 14)
                         }
                     }
+                    .padding(1)
                 }
                 .frame(maxHeight: 360)
             }
@@ -76,32 +83,20 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 0) {
-            Button {
+        VStack(spacing: 1) {
+            FooterButton(title: "Settings...", systemImage: "gearshape") {
                 openSettings()
-            } label: {
-                HStack {
-                    Label("Settings...", systemImage: "gearshape")
-                    Spacer()
-                }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
 
-            Button {
+            FooterButton(title: "Quit Porchlight", systemImage: "power") {
                 NSApplication.shared.terminate(nil)
-            } label: {
-                HStack {
-                    Label("Quit Porchlight", systemImage: "power")
-                    Spacer()
-                }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+        }
+        .padding(5)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(.quaternary.opacity(0.7), lineWidth: 0.5)
         }
     }
 
@@ -114,6 +109,30 @@ struct MenuBarView: View {
         default:
             return "\(viewModel.activeServerCount) servers active"
         }
+    }
+}
+
+private struct FooterButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18)
+                Text(title)
+                    .font(.system(size: 13))
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
