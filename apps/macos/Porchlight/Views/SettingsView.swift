@@ -311,67 +311,48 @@ struct SettingsView: View {
 
     private var aboutPane: some View {
         VStack(spacing: 34) {
-            HStack(alignment: .top, spacing: 34) {
+            HStack(alignment: .top, spacing: 50) {
                 Image(nsImage: PorchlightAppIcon.image)
                     .resizable()
-                    .frame(width: 128, height: 128)
+                    .frame(width: 160, height: 160)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 9) {
                     Text("Porchlight")
-                        .font(.title3.weight(.semibold))
+                        .font(.title2.weight(.semibold))
 
                     Text("Version 0.1.0")
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     Text("Find the servers you left on.")
+                        .font(.title3)
                         .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 9) {
+                        LinkButton("Acknowledgements", url: repositoryURL)
+                        LinkButton("Privacy Policy", url: privacyURL)
+                        LinkButton("Terms of Use", url: termsURL)
+                    }
+                    .padding(.top, 14)
 
                     Button("Report an Issue...") { open(issuesURL) }
                         .padding(.top, 10)
                 }
-                .frame(width: 210, alignment: .leading)
+                .frame(width: 270, alignment: .leading)
             }
 
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 Text("Porchlight runs locally and uses the bundled Rust CLI to inspect development servers.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 10) {
-                    Button("GitHub") { open(repositoryURL) }
-                    Button("Report an Issue...") { open(issuesURL) }
-                    Button("Terms") { open(termsURL) }
-                    Button("Privacy") { open(privacyURL) }
-                }
-
-                legalPane
-
                 Text("© 2026 Porchlight. All rights reserved.")
                     .foregroundStyle(.secondary)
             }
-            .font(.callout)
-            .frame(maxWidth: 460)
+            .font(.title3)
+            .frame(maxWidth: 620)
         }
-        .frame(maxWidth: .infinity, minHeight: 340, alignment: .center)
-    }
-
-    private var legalPane: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Divider()
-
-            Text("Terms of Use")
-                .font(.headline)
-            Text("Porchlight is provided as-is for local development workflows. You are responsible for how you use the app, including any processes you start, stop, remove, or expose. The app may change over time and no warranty is provided to the maximum extent permitted by law.")
-
-            Text("Privacy Policy")
-                .font(.headline)
-                .padding(.top, 4)
-            Text("Porchlight runs locally on your Mac. It inspects local listening ports and process metadata to show development servers. It does not create an account, track usage, or send server/process data to Tyler Harden or any third-party analytics service. If you open GitHub links or submit issues, GitHub's terms and privacy policy apply.")
-        }
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .multilineTextAlignment(.leading)
-        .frame(maxWidth: 520, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 520, alignment: .center)
     }
 
     private func open(_ url: URL) {
@@ -442,6 +423,25 @@ private struct PreferenceRow<Content: View>: View {
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private struct LinkButton: View {
+    let title: String
+    let url: URL
+
+    init(_ title: String, url: URL) {
+        self.title = title
+        self.url = url
+    }
+
+    var body: some View {
+        Button(title) {
+            NSWorkspace.shared.open(url)
+        }
+        .buttonStyle(.plain)
+        .font(.title3)
+        .foregroundStyle(.blue)
     }
 }
 
