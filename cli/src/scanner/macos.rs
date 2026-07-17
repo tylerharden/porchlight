@@ -28,7 +28,9 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             continue;
         }
 
-        let process = process_details(listener.pid)?;
+        let Ok(process) = process_details(listener.pid) else {
+            continue;
+        };
         let working_directory = process.working_directory;
 
         if !config.includes(
