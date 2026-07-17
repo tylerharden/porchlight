@@ -44,7 +44,7 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
         let display_directory = working_directory.as_deref().map(display_directory);
 
         servers.push(LocalServer {
-            id: server_id(listener.port, working_directory.as_deref(), &server_type),
+            id: server_id(listener.port, working_directory.as_deref()),
             port: listener.port,
             pid: listener.pid,
             status: ServerStatus::Active,
@@ -143,13 +143,8 @@ fn format_command(executable: &str, arguments: &[&str]) -> String {
         .join(" ")
 }
 
-fn server_id(port: u16, working_directory: Option<&str>, server_type: &str) -> String {
-    format!(
-        "{}:{}:{}",
-        port,
-        working_directory.unwrap_or("unknown"),
-        server_type.to_lowercase().replace(' ', "-")
-    )
+fn server_id(port: u16, working_directory: Option<&str>) -> String {
+    format!("{}:{}", port, working_directory.unwrap_or("unknown"))
 }
 
 #[cfg(test)]

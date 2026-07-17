@@ -1,10 +1,11 @@
 mod config;
 mod model;
 mod scanner;
+mod state;
 
 use clap::{Parser, Subcommand};
 use config::Config;
-use scanner::ScannerError;
+use state::StateError;
 
 #[derive(Parser)]
 #[command(name = "porchlight")]
@@ -42,13 +43,16 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), ScannerError> {
+fn run() -> Result<(), PorchlightError> {
     let cli = Cli::parse();
     let config = Config::default();
 
     match cli.command.unwrap_or(Commands::List { json: false }) {
         Commands::List { json } => {
-            let servers = scanner::scan(&config)?;
+            let active_servers = scanner::scan(&config)?;
+            let mut state = state::AppState::load()?;
+            let servers = state.merge_servers(active_servers, &config);
+            state.save()?;
 
             if json {
                 let response = model::ServerList { servers };
@@ -82,4 +86,12 @@ fn run() -> Result<(), ScannerError> {
     }
 
     Ok(())
+}
+
+#[derive(Debug, thiserror::Error)]
+enum PorchlightError {
+    #[error(transparent)]
+    Scanner(#[from] scanner::ScannerError),
+    #[error(transparent)]
+    State(#[from] StateError),
 }

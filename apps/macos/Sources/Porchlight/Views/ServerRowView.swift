@@ -10,7 +10,7 @@ struct ServerRowView: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 7) {
-                    Text("\(server.port)")
+                    Text(verbatim: String(server.port))
                         .font(.system(size: compact ? 14 : 15, weight: .semibold, design: .rounded))
 
                     Text(server.serverType)

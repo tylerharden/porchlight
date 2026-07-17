@@ -3,12 +3,12 @@ use std::sync::OnceLock;
 
 const SERVER_TYPES_JSON: &str = include_str!("server_types.json");
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ServerList {
     pub servers: Vec<LocalServer>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LocalServer {
     pub id: String,
     pub port: u16,
@@ -25,7 +25,7 @@ pub struct LocalServer {
     pub start_command: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[allow(dead_code)]
 pub enum ServerStatus {
