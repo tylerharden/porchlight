@@ -1,6 +1,7 @@
 use super::{display_directory, ScannerError};
 use crate::config::Config;
 use crate::model::{infer_server_type, LocalServer, ServerStatus};
+use std::collections::HashSet;
 use std::process::Command;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,16 +21,26 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
     let output = run_command("/usr/sbin/lsof", &["-nP", "-iTCP", "-sTCP:LISTEN"])?;
     let listeners = parse_lsof_listeners(&output);
     let mut servers = Vec::new();
+    let mut seen = HashSet::new();
 
     for listener in listeners {
-        let process = process_details(listener.pid)?;
+        if !seen.insert((listener.port, listener.pid)) {
+            continue;
+        }
 
-        if !config.includes(&listener.process_name, &process.command, listener.port) {
+        let process = process_details(listener.pid)?;
+        let working_directory = process.working_directory;
+
+        if !config.includes(
+            &listener.process_name,
+            &process.command,
+            working_directory.as_deref(),
+            listener.port,
+        ) {
             continue;
         }
 
         let server_type = infer_server_type(&listener.process_name, &process.command);
-        let working_directory = process.working_directory;
         let display_directory = working_directory.as_deref().map(display_directory);
 
         servers.push(LocalServer {

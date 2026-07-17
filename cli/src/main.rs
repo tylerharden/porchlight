@@ -52,12 +52,18 @@ fn run() -> Result<(), ScannerError> {
 
             if json {
                 let response = model::ServerList { servers };
-                println!("{}", serde_json::to_string_pretty(&response).expect("server list serializes"));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&response).expect("server list serializes")
+                );
             } else if servers.is_empty() {
                 println!("No local servers found.");
             } else {
                 for server in servers {
-                    let path = server.display_directory.as_deref().unwrap_or("Unknown directory");
+                    let path = server
+                        .display_directory
+                        .as_deref()
+                        .unwrap_or("Unknown directory");
                     println!(
                         "{}\t{}\t{}\tpid {}\t{}",
                         server.port, server.server_type, server.process_name, server.pid, path
@@ -67,7 +73,10 @@ fn run() -> Result<(), ScannerError> {
         }
         Commands::Config { command } => match command {
             ConfigCommands::Show => {
-                println!("{}", serde_json::to_string_pretty(&config).expect("config serializes"));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&config).expect("config serializes")
+                );
             }
         },
     }

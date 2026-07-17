@@ -27,6 +27,7 @@ pub struct LocalServer {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum ServerStatus {
     Active,
     Recent,
@@ -60,9 +61,11 @@ fn server_type_rules() -> &'static [ServerTypeRule] {
 
 impl ServerTypeRule {
     fn matches(&self, haystack: &str) -> bool {
-        self.match_any
-            .iter()
-            .any(|terms| terms.iter().all(|term| haystack.contains(&term.to_lowercase())))
+        self.match_any.iter().any(|terms| {
+            terms
+                .iter()
+                .all(|term| haystack.contains(&term.to_lowercase()))
+        })
     }
 }
 
@@ -82,12 +85,18 @@ mod tests {
 
     #[test]
     fn infers_common_server_types() {
-        assert_eq!(infer_server_type("Python", "python manage.py runserver 8000"), "Django");
+        assert_eq!(
+            infer_server_type("Python", "python manage.py runserver 8000"),
+            "Django"
+        );
         assert_eq!(infer_server_type("node", "npm exec vite --host"), "Vite");
         assert_eq!(infer_server_type("node", "next dev"), "Next.js");
         assert_eq!(infer_server_type("ruby", "rails server"), "Rails");
         assert_eq!(infer_server_type("python", "uvicorn app:app"), "Uvicorn");
-        assert_eq!(infer_server_type("node", "live-server --port=5501"), "Live Server");
+        assert_eq!(
+            infer_server_type("node", "live-server --port=5501"),
+            "Live Server"
+        );
     }
 
     #[test]
