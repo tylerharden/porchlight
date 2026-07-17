@@ -28,6 +28,11 @@ enum Commands {
         #[command(subcommand)]
         command: ConfigCommands,
     },
+    /// Kill active server processes by port or server id.
+    Kill {
+        /// Port number or server id from `porchlight list --json`.
+        target: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -83,9 +88,55 @@ fn run() -> Result<(), PorchlightError> {
                 );
             }
         },
+        Commands::Kill { target } => {
+            let killed = kill_matching_servers(&config, &target)?;
+            println!(
+                "Killed {} process{}.",
+                killed,
+                if killed == 1 { "" } else { "es" }
+            );
+        }
     }
 
     Ok(())
+}
+
+fn kill_matching_servers(config: &Config, target: &str) -> Result<usize, PorchlightError> {
+    let active_servers = scanner::scan(config)?;
+    let target_port = target.parse::<u16>().ok();
+    let matching_servers = active_servers
+        .into_iter()
+        .filter(|server| target_port == Some(server.port) || server.id == target)
+        .collect::<Vec<_>>();
+
+    if matching_servers.is_empty() {
+        return Err(PorchlightError::NoMatchingServer(target.to_string()));
+    }
+
+    let mut killed_pids = std::collections::HashSet::new();
+
+    for server in matching_servers {
+        if server.pid == 0 || !killed_pids.insert(server.pid) {
+            continue;
+        }
+
+        let status = std::process::Command::new("/bin/kill")
+            .arg(server.pid.to_string())
+            .status()
+            .map_err(|source| PorchlightError::KillFailed {
+                pid: server.pid,
+                message: source.to_string(),
+            })?;
+
+        if !status.success() {
+            return Err(PorchlightError::KillFailed {
+                pid: server.pid,
+                message: status.to_string(),
+            });
+        }
+    }
+
+    Ok(killed_pids.len())
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -94,4 +145,8 @@ enum PorchlightError {
     Scanner(#[from] scanner::ScannerError),
     #[error(transparent)]
     State(#[from] StateError),
+    #[error("no active server matched '{0}'")]
+    NoMatchingServer(String),
+    #[error("failed to kill pid {pid}: {message}")]
+    KillFailed { pid: u32, message: String },
 }

@@ -14,6 +14,10 @@ struct PorchlightCLI {
         return try JSONDecoder().decode(ServerListResponse.self, from: data).servers
     }
 
+    func killServer(_ server: LocalServer) async throws {
+        _ = try await run(arguments: ["kill", server.id])
+    }
+
     private func run(arguments: [String]) async throws -> Data {
         try await Task.detached(priority: .userInitiated) {
             let process = Process()

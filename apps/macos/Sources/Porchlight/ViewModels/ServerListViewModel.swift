@@ -9,6 +9,7 @@ final class ServerListViewModel {
     var servers: [LocalServer] = []
     var errorMessage: String?
     var isRefreshing = false
+    var killingServerIDs: Set<String> = []
     var lastRefreshedAt: Date?
 
     var hasActiveServers: Bool {
@@ -39,6 +40,21 @@ final class ServerListViewModel {
             servers = try await cli.listServers()
             errorMessage = nil
             lastRefreshedAt = Date()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func kill(_ server: LocalServer) async {
+        guard !killingServerIDs.contains(server.id) else { return }
+
+        killingServerIDs.insert(server.id)
+        defer { killingServerIDs.remove(server.id) }
+
+        do {
+            try await cli.killServer(server)
+            errorMessage = nil
+            await refresh()
         } catch {
             errorMessage = error.localizedDescription
         }

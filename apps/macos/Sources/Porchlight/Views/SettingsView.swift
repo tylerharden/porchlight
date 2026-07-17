@@ -18,7 +18,9 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(viewModel.servers) { server in
-                    ServerRowView(server: server)
+                    ServerRowView(server: server, isKilling: viewModel.killingServerIDs.contains(server.id)) {
+                        Task { await viewModel.kill(server) }
+                    }
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }
@@ -26,7 +28,7 @@ struct SettingsView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(.regularMaterial)
+        .background(.ultraThinMaterial)
     }
 
     private var header: some View {

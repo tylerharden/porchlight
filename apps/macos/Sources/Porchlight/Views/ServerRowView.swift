@@ -3,6 +3,8 @@ import SwiftUI
 struct ServerRowView: View {
     let server: LocalServer
     var compact = false
+    var isKilling = false
+    var onKill: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .center, spacing: 11) {
@@ -40,11 +42,7 @@ struct ServerRowView: View {
         }
         .padding(.horizontal, 11)
         .padding(.vertical, compact ? 10 : 12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.quaternary.opacity(0.7), lineWidth: 0.5)
-        }
+        .porchlightGlass(cornerRadius: 14)
         .opacity(server.isActive ? 1 : 0.68)
     }
 
@@ -62,7 +60,7 @@ struct ServerRowView: View {
     private var actions: some View {
         HStack(spacing: 5) {
             if server.isActive {
-                ActionChip(title: "Kill", systemImage: "xmark")
+                ActionChip(title: "Kill", systemImage: "xmark", isLoading: isKilling, action: onKill)
             } else {
                 ActionChip(title: "Start", systemImage: "play.fill")
                 ActionChip(title: "Remove", systemImage: "minus")
@@ -74,17 +72,28 @@ struct ServerRowView: View {
 private struct ActionChip: View {
     let title: String
     let systemImage: String
+    var isLoading = false
+    var action: (() -> Void)?
 
     var body: some View {
-        Button {} label: {
-            Label(title, systemImage: systemImage)
-                .labelStyle(.iconOnly)
-                .font(.system(size: 10, weight: .semibold))
-                .frame(width: 24, height: 22)
-                .background(.quaternary.opacity(0.75), in: Capsule())
+        Button {
+            action?()
+        } label: {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Label(title, systemImage: systemImage)
+                        .labelStyle(.iconOnly)
+                }
+            }
+            .font(.system(size: 10, weight: .semibold))
+            .frame(width: 24, height: 22)
+            .background(.quaternary.opacity(0.75), in: Capsule())
         }
         .buttonStyle(.plain)
-        .disabled(true)
+        .disabled(action == nil || isLoading)
         .help(title)
     }
 }

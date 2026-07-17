@@ -14,7 +14,7 @@ struct MenuBarView: View {
             footer
         }
         .padding(10)
-        .background(.ultraThinMaterial)
+        .porchlightGlass(cornerRadius: 22)
     }
 
     private var header: some View {
@@ -72,7 +72,13 @@ struct MenuBarView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(viewModel.servers) { server in
-                            ServerRowView(server: server, compact: true)
+                            ServerRowView(
+                                server: server,
+                                compact: true,
+                                isKilling: viewModel.killingServerIDs.contains(server.id)
+                            ) {
+                                Task { await viewModel.kill(server) }
+                            }
                         }
                     }
                     .padding(1)
@@ -93,11 +99,7 @@ struct MenuBarView: View {
             }
         }
         .padding(5)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.quaternary.opacity(0.7), lineWidth: 0.5)
-        }
+        .porchlightGlass(cornerRadius: 14)
     }
 
     private var summaryText: String {
@@ -108,6 +110,22 @@ struct MenuBarView: View {
             return "1 server active"
         default:
             return "\(viewModel.activeServerCount) servers active"
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func porchlightGlass(cornerRadius: CGFloat) -> some View {
+        if #available(macOS 26.0, *) {
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+        } else {
+            self
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(.quaternary.opacity(0.7), lineWidth: 0.5)
+                }
         }
     }
 }
