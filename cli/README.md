@@ -7,6 +7,11 @@ The Porchlight CLI is the source of truth for local server discovery, server sta
 ```bash
 porchlight list
 porchlight list --json
+porchlight tui
+porchlight groups list
+porchlight groups add Frontend --command vite --command npm --color "#7C5CFF" --icon ~/Developer/app/public/favicon.ico --priority 10
+porchlight groups edit frontend --name Web --priority 20
+porchlight groups remove frontend
 porchlight config show
 porchlight kill <port-or-server-id>
 porchlight remove <port-or-server-id>
@@ -19,8 +24,41 @@ During development, run through Cargo:
 ```bash
 cargo run -- list
 cargo run -- list --json
+cargo run -- tui
 cargo run -- config show
 ```
+
+## Terminal UI
+
+`porchlight tui` opens an interactive full-screen terminal view of active and recent servers.
+
+Keybindings:
+
+- `↑` / `↓` or `j` / `k` - select a server
+- `enter` or `o` - open the server URL
+- `s` - start an inactive server when a start command is known
+- `x` - kill an active server
+- `p` - pin or unpin the selected server
+- `d` - remove the selected recent server
+- `r` - refresh now
+- `q` or `esc` - quit
+
+## Groups
+
+Groups classify servers without changing their built-in server type. They are stored in `~/.config/porchlight/groups.json` and are shared by the CLI, TUI, and macOS app.
+
+Examples:
+
+```bash
+porchlight groups list
+porchlight groups list --json
+porchlight groups add Frontend --command vite --command npm --color "#7C5CFF" --icon ~/Developer/app/public/favicon.ico --priority 10
+porchlight groups add API --path /Users/tyler/Developer/api --color "#34C759"
+porchlight groups edit frontend --name Web --priority 20
+porchlight groups remove frontend
+```
+
+Use repeatable `--command` and `--path` flags for matching rules. If both command and path rules are present, both categories must match. Higher priority wins when multiple groups match. Use `--icon` to set an icon path or file URL; when omitted, Porchlight attempts common web favicon locations such as `public/favicon.ico` and `app/favicon.ico` from the matched working directory.
 
 ## JSON Contract
 
@@ -36,10 +74,12 @@ cargo run -- config show
       "status": "active",
       "process_name": "Python",
       "server_type": "Django",
+      "icon": "/Users/tyler/Developer/example/public/favicon.ico",
       "group": {
         "id": "...",
         "name": "Alexandria",
-        "color": "#34C759"
+        "color": "#34C759",
+        "icon": "/Users/tyler/Developer/example/public/favicon.ico"
       },
       "command": "python manage.py runserver",
       "working_directory": "/Users/tyler/Developer/example",

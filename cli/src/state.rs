@@ -70,17 +70,20 @@ impl AppState {
 
     pub fn merge_servers(
         &mut self,
-        active_servers: Vec<LocalServer>,
+        mut active_servers: Vec<LocalServer>,
         config: &Config,
     ) -> Vec<LocalServer> {
         let now = OffsetDateTime::now_utc();
         let now_text = format_timestamp(now);
+
+        let previous_recent_servers = std::mem::take(&mut self.recent_servers);
+        backfill_unknown_active_locations(&mut active_servers, &previous_recent_servers);
+
         let active_keys = active_servers
             .iter()
             .map(server_identity_key)
             .collect::<HashSet<_>>();
 
-        let previous_recent_servers = std::mem::take(&mut self.recent_servers);
         let recent_by_key = previous_recent_servers
             .into_iter()
             .map(|server| (server_identity_key(&server), server))
@@ -95,9 +98,12 @@ impl AppState {
                 server.pinned = previous
                     .map(|server| server.pinned)
                     .unwrap_or(server.pinned);
-                server.start_command = server.start_command.or_else(|| {
-                    previous.and_then(|server| server.start_command.clone())
-                });
+                server.start_command = server
+                    .start_command
+                    .or_else(|| previous.and_then(|server| server.start_command.clone()));
+                server.icon = server
+                    .icon
+                    .or_else(|| previous.and_then(|server| server.icon.clone()));
                 server
             })
             .collect::<Vec<_>>();
@@ -134,6 +140,7 @@ impl AppState {
         output.dedup_by(|left, right| server_identity_key(left) == server_identity_key(right));
 
         for server in &mut output {
+            backfill_start_command(server);
             server.group = infer_server_group(&server.command, server.working_directory.as_deref());
         }
 
@@ -156,6 +163,7 @@ impl AppState {
 
         for server in &mut self.recent_servers {
             if server_matches_target(server, target) {
+                backfill_start_command(server);
                 server.pinned = pinned;
                 changed = true;
             }
@@ -184,6 +192,37 @@ impl AppState {
         }
 
         changed
+    }
+}
+
+fn backfill_start_command(server: &mut LocalServer) {
+    if server.start_command.is_none() && !server.command.trim().is_empty() {
+        server.start_command = Some(server.command.clone());
+    }
+}
+
+fn backfill_unknown_active_locations(
+    active_servers: &mut [LocalServer],
+    previous_servers: &[LocalServer],
+) {
+    for active in active_servers {
+        if active.working_directory.is_some() {
+            continue;
+        }
+
+        let matches = previous_servers
+            .iter()
+            .filter(|previous| previous.port == active.port && previous.working_directory.is_some())
+            .collect::<Vec<_>>();
+
+        let [previous] = matches.as_slice() else {
+            continue;
+        };
+
+        active.id = previous.id.clone();
+        active.working_directory = previous.working_directory.clone();
+        active.display_directory = previous.display_directory.clone();
+        active.icon = active.icon.clone().or_else(|| previous.icon.clone());
     }
 }
 
@@ -405,7 +444,49 @@ mod tests {
         let servers = state.merge_servers(vec![active], &Config::default());
 
         assert_eq!(servers[0].start_command.as_deref(), Some("npm run dev"));
-        assert_eq!(state.recent_servers[0].start_command.as_deref(), Some("npm run dev"));
+        assert_eq!(
+            state.recent_servers[0].start_command.as_deref(),
+            Some("npm run dev")
+        );
+    }
+
+    #[test]
+    fn backfills_unknown_active_location_from_previous_server_on_same_port() {
+        let mut state = AppState {
+            recent_servers: vec![fresh_recent("server", 8000, "/tmp/app")],
+            pinned_servers: vec![],
+        };
+
+        let mut active = server("8000:unknown", 8000, "/tmp/app", ServerStatus::Active);
+        active.id = "8000:unknown".into();
+        active.working_directory = None;
+        active.display_directory = None;
+
+        let servers = state.merge_servers(vec![active], &Config::default());
+
+        assert_eq!(servers.len(), 1);
+        assert_eq!(servers[0].id, "server");
+        assert_eq!(servers[0].working_directory.as_deref(), Some("/tmp/app"));
+        assert_eq!(servers[0].status, ServerStatus::Active);
+    }
+
+    #[test]
+    fn backfills_start_command_for_existing_recent_server() {
+        let mut state = AppState {
+            recent_servers: vec![fresh_recent("server", 8000, "/tmp/app")],
+            pinned_servers: vec![],
+        };
+
+        let servers = state.merge_servers(vec![], &Config::default());
+
+        assert_eq!(
+            servers[0].start_command.as_deref(),
+            Some("python manage.py runserver")
+        );
+        assert_eq!(
+            state.recent_servers[0].start_command.as_deref(),
+            Some("python manage.py runserver")
+        );
     }
 
     fn fresh_recent(id: &str, port: u16, working_directory: &str) -> LocalServer {
@@ -423,6 +504,7 @@ mod tests {
             process_name: "python".into(),
             server_type: "Django".into(),
             group: None,
+            icon: None,
             command: "python manage.py runserver".into(),
             working_directory: Some(working_directory.into()),
             display_directory: Some(working_directory.into()),

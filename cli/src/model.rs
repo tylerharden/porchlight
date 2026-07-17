@@ -20,6 +20,9 @@ pub struct LocalServer {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group: Option<ServerGroupMatch>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     pub command: String,
     pub working_directory: Option<String>,
     pub display_directory: Option<String>,
@@ -34,6 +37,9 @@ pub struct ServerGroupMatch {
     pub id: String,
     pub name: String,
     pub color: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -47,6 +53,9 @@ pub struct ServerGroup {
     pub id: String,
     pub name: String,
     pub color: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     #[serde(default)]
     pub command_contains: Vec<String>,
     #[serde(default)]
@@ -80,9 +89,13 @@ pub fn infer_server_type(process_name: &str, command: &str) -> String {
         .unwrap_or_else(|| fallback_server_type(process_name))
 }
 
-pub fn infer_server_group(command: &str, working_directory: Option<&str>) -> Option<ServerGroupMatch> {
+pub fn infer_server_group(
+    command: &str,
+    working_directory: Option<&str>,
+) -> Option<ServerGroupMatch> {
     let command = command.to_lowercase();
-    let working_directory = working_directory.unwrap_or_default().to_lowercase();
+    let original_working_directory = working_directory.unwrap_or_default();
+    let working_directory = original_working_directory.to_lowercase();
 
     let mut groups = load_server_groups().groups;
     groups.sort_by(|left, right| right.priority.cmp(&left.priority));
@@ -94,10 +107,39 @@ pub fn infer_server_group(command: &str, working_directory: Option<&str>) -> Opt
             id: group.id,
             name: group.name,
             color: group.color,
+            icon: group
+                .icon
+                .filter(|icon| !icon.trim().is_empty())
+                .or_else(|| discover_project_icon(original_working_directory)),
         })
 }
 
-fn load_server_groups() -> ServerGroups {
+pub fn discover_project_icon(working_directory: &str) -> Option<String> {
+    if working_directory.is_empty() {
+        return None;
+    }
+
+    let root = PathBuf::from(working_directory);
+    [
+        "public/favicon.ico",
+        "public/favicon.png",
+        "public/apple-touch-icon.png",
+        "app/favicon.ico",
+        "src/app/favicon.ico",
+        "static/favicon.ico",
+        "static/favicon.png",
+        "assets/favicon.ico",
+        "assets/favicon.png",
+        "favicon.ico",
+        "favicon.png",
+    ]
+    .iter()
+    .map(|candidate| root.join(candidate))
+    .find(|path| path.is_file())
+    .map(|path| path.to_string_lossy().to_string())
+}
+
+pub fn load_server_groups() -> ServerGroups {
     let path = server_groups_path();
     let Ok(contents) = std::fs::read_to_string(path) else {
         return ServerGroups { groups: vec![] };
@@ -106,7 +148,17 @@ fn load_server_groups() -> ServerGroups {
     serde_json::from_str(&contents).unwrap_or(ServerGroups { groups: vec![] })
 }
 
-fn server_groups_path() -> PathBuf {
+pub fn save_server_groups(groups: &ServerGroups) -> std::io::Result<()> {
+    let path = server_groups_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let contents = serde_json::to_string_pretty(groups).expect("server groups serialize");
+    std::fs::write(path, format!("{contents}\n"))
+}
+
+pub fn server_groups_path() -> PathBuf {
     let home = std::env::var_os("HOME").unwrap_or_else(|| ".".into());
     PathBuf::from(home)
         .join(".config")
@@ -134,7 +186,10 @@ impl ServerTypeRule {
 
 impl ServerGroup {
     fn matches(&self, command: &str, working_directory: &str) -> bool {
-        let has_command_rules = self.command_contains.iter().any(|value| !value.trim().is_empty());
+        let has_command_rules = self
+            .command_contains
+            .iter()
+            .any(|value| !value.trim().is_empty());
         let has_directory_rules = self
             .working_directories
             .iter()
@@ -173,7 +228,7 @@ fn fallback_server_type(process_name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{infer_server_type, ServerGroup};
+    use super::{discover_project_icon, infer_server_type, ServerGroup};
 
     #[test]
     fn infers_common_server_types() {
@@ -203,6 +258,7 @@ mod tests {
             id: "alexandria".into(),
             name: "Alexandria".into(),
             color: "#34C759".into(),
+            icon: None,
             command_contains: vec!["manage.py".into()],
             working_directories: vec!["/developer/alexandria".into()],
             priority: 100,
@@ -216,5 +272,22 @@ mod tests {
             "uv run python manage.py runserver",
             "/users/tyler/developer/other"
         ));
+    }
+
+    #[test]
+    fn discovers_common_project_icon_paths() {
+        let root =
+            std::env::temp_dir().join(format!("porchlight-icon-test-{}", std::process::id()));
+        let public = root.join("public");
+        std::fs::create_dir_all(&public).unwrap();
+        let icon = public.join("favicon.ico");
+        std::fs::write(&icon, []).unwrap();
+
+        assert_eq!(
+            discover_project_icon(root.to_str().unwrap()).as_deref(),
+            Some(icon.to_str().unwrap())
+        );
+
+        let _ = std::fs::remove_dir_all(root);
     }
 }
