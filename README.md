@@ -2,127 +2,134 @@
 
 **Find the servers you left on.**
 
-Porchlight is a small developer utility for seeing local servers currently running on your machine, where they came from, and what ports they are using.
+Porchlight is a local developer utility for seeing local servers running on your machine, the ports they use, where they came from, and what actions are available.
 
-The foundation is a fast Rust CLI. Native apps, starting with a macOS menu bar app, sit on top of the CLI by reading stable JSON output.
+The Rust CLI is the source of truth. The macOS app shells out to the CLI and reads stable JSON output.
+
+## Current Status
+
+- Rust CLI for macOS server discovery is implemented.
+- Native macOS app is implemented as a regular Xcode project.
+- Menu bar dropdown uses `NSStatusItem` and `NSMenu`.
+- Main window uses native SwiftUI, including split-view Servers and Groups sections.
+- Windows/Linux apps are not started.
 
 ## Architecture
 
 ```text
-Rust CLI/core = source of truth
-Native apps = thin platform-specific shells over CLI JSON
+cli/                 Rust CLI and server detection core
+apps/macos/          Native macOS app
+PLAN.md              Product/implementation notes
+README.md            Project overview
 ```
 
-Target layout:
+The CLI scans local listening processes, enriches them with process metadata, merges active servers with recent and pinned state, and returns JSON. Native apps should treat that JSON as the app contract.
+
+## Features
+
+- Detect active local development servers on macOS.
+- Show port, process, command, working directory, status, and inferred type.
+- Infer common server types such as Django, Vite, Next.js, Rails, Uvicorn, Python, and Node.
+- Keep recent stopped servers visible for a bounded time.
+- Pin servers so they remain visible when stopped.
+- Kill, remove, pin, unpin, start, and open servers from the app.
+- Create user-defined Groups with colour, priority, command matching, and working-directory matching.
+- Group active and inactive/recent servers in the menu bar until they are removed.
+
+## Repository Layout
 
 ```text
-Porchlight/
+porchlight/
   cli/
     Cargo.toml
+    README.md
     src/
       main.rs
       model.rs
       config.rs
+      state.rs
+      server_types.json
       scanner/
         mod.rs
         macos.rs
-        linux.rs
-        windows.rs
 
   apps/
     macos/
-      Porchlight.xcodeproj
+      README.md
+      Porchlight.xcodeproj/
       Porchlight/
-        SwiftUI menu bar app that shells out to bundled Rust CLI
-
-    windows/
-      Future Windows tray/taskbar app
-
-    linux/
-      Future tray app if useful
-
-  README.md
-  PLAN.md
+        AppDelegate.swift
+        StatusBarController.swift
+        SettingsWindowController.swift
+        Models/
+        Services/
+        ViewModels/
+        Views/
 ```
 
-## CLI Direction
+## CLI
 
-Initial commands:
-
-```bash
-porchlight list
-porchlight list --json
-porchlight config show
-```
-
-Future commands:
-
-```bash
-porchlight pin <server-id>
-porchlight unpin <server-id>
-porchlight remove <server-id>
-porchlight open <server-id-or-port>
-porchlight kill <server-id-or-port>
-porchlight start <server-id>
-```
-
-## macOS App Direction
-
-The macOS app will be a native SwiftUI menu bar app.
-
-The menu bar dropdown shows:
-
-- Active local servers.
-- Recent stopped servers.
-- Pinned servers.
-- Port number.
-- Project directory.
-- Inferred server type such as `Django`, `Vite`, `Node`, or `Python`.
-- Green status light for active servers.
-- Grey/off status light for recent or stopped servers.
-- Actions such as `Kill`, `Start`, and `Remove`.
-
-Settings opens a native window with a `My Servers` section where users can pin frequently used servers. Pinning should update the menu bar dropdown instantly.
-
-During development, the macOS app calls the local debug CLI binary:
-
-```text
-/Users/tyler/Developer/porchlight/cli/target/debug/porchlight
-```
-
-Override this path with `PORCHLIGHT_CLI_PATH` if needed.
-
-## Current Status
-
-This repository is being pivoted from an early Swift prototype to the final Porchlight architecture:
-
-- Rust CLI first.
-- macOS menu bar app second.
-- Windows/Linux support later.
-
-See `PLAN.md` for the detailed implementation plan.
-
-## Development
-
-Run the CLI from the Rust crate:
+Common commands:
 
 ```bash
 cd cli
 cargo run -- list
 cargo run -- list --json
 cargo run -- config show
+cargo run -- kill <port-or-server-id>
+cargo run -- remove <port-or-server-id>
+cargo run -- pin <port-or-server-id>
+cargo run -- unpin <port-or-server-id>
 ```
 
 Run tests:
 
 ```bash
 cd cli
-cargo test
+cargo test -j 1
 ```
 
-Run the macOS menu bar app:
+See `cli/README.md` for CLI details.
+
+## macOS App
+
+Build with Xcode beta:
 
 ```bash
 cd apps/macos
-DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" swift run Porchlight
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" xcodebuild -project "Porchlight.xcodeproj" -scheme "Porchlight" -configuration Debug build
 ```
+
+The Xcode build bundles the Rust CLI into:
+
+```text
+Porchlight.app/Contents/Resources/porchlight
+```
+
+During development, the app prefers the local debug CLI when available:
+
+```text
+/Users/tyler/Developer/porchlight/cli/target/debug/porchlight
+```
+
+Override the CLI path with `PORCHLIGHT_CLI_PATH`.
+
+See `apps/macos/README.md` for macOS app details.
+
+## User Data
+
+Porchlight stores runtime state and user Groups outside the repo:
+
+```text
+~/.local/state/porchlight/state.json
+~/.config/porchlight/groups.json
+```
+
+`state.json` tracks recent and pinned servers. `groups.json` stores user-defined Groups edited from the macOS app.
+
+## Development Notes
+
+- Keep server detection and JSON shape in the CLI.
+- Keep platform UI native-first.
+- Do not mutate built-in server type rules for user customisation; use Groups for user-owned classification.
+- macOS sandboxing is disabled so Porchlight can inspect local processes.
