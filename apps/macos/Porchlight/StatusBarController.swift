@@ -14,7 +14,7 @@ final class StatusBarController: NSObject {
         self.mainWindowController = mainWindowController
         super.init()
 
-        statusItem.button?.image = NSImage(systemSymbolName: "lightbulb", accessibilityDescription: "Porchlight")
+        statusItem.button?.image = PorchlightStatusIcon.image(isActive: false)
         statusItem.button?.imagePosition = .imageOnly
 
         rebuildMenu()
@@ -48,10 +48,7 @@ final class StatusBarController: NSObject {
     private func refresh() async {
         do {
             servers = try await cli.listServers()
-            statusItem.button?.image = NSImage(
-                systemSymbolName: servers.contains { $0.isActive } ? "lightbulb.fill" : "lightbulb",
-                accessibilityDescription: "Porchlight"
-            )
+            statusItem.button?.image = PorchlightStatusIcon.image(isActive: servers.contains { $0.isActive })
             rebuildMenu()
         } catch {
             rebuildMenu(error: error.localizedDescription)
