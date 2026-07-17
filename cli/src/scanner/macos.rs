@@ -1,7 +1,8 @@
 use super::{display_directory, ScannerError};
 use crate::config::Config;
 use crate::model::{
-    discover_project_icon, infer_server_group, infer_server_type, LocalServer, ServerStatus,
+    discover_project_icon, infer_server_group, infer_server_type_for_project, LocalServer,
+    ServerStatus,
 };
 use std::collections::HashSet;
 use std::path::Path;
@@ -43,19 +44,25 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             continue;
         }
 
-        if !is_vscode_live_server && !config.includes(
-            &listener.process_name,
-            &process.command,
-            working_directory.as_deref(),
-            listener.port,
-        ) {
+        if !is_vscode_live_server
+            && !config.includes(
+                &listener.process_name,
+                &process.command,
+                working_directory.as_deref(),
+                listener.port,
+            )
+        {
             continue;
         }
 
         let server_type = if is_vscode_live_server {
             "Live Server".to_string()
         } else {
-            infer_server_type(&listener.process_name, &process.command)
+            infer_server_type_for_project(
+                &listener.process_name,
+                &process.command,
+                working_directory.as_deref(),
+            )
         };
         let group = infer_server_group(&process.command, working_directory.as_deref());
         let icon = working_directory.as_deref().and_then(discover_project_icon);
