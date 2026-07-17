@@ -85,7 +85,6 @@ private struct ActionChip: View {
             }
             .font(.system(size: 10, weight: .semibold))
             .frame(width: 22, height: 20)
-            .background(.quaternary.opacity(0.55), in: Capsule())
         }
         .buttonStyle(.plain)
         .disabled(action == nil || isLoading)

@@ -21,16 +21,7 @@ struct MenuBarView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 9) {
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.opacity(0.14))
-                Image(systemName: "lightbulb.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .frame(width: 24, height: 24)
-
+        HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Porchlight")
                     .font(.system(size: 13, weight: .semibold))
@@ -51,7 +42,6 @@ struct MenuBarView: View {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 12, weight: .medium))
                         .frame(width: 24, height: 24)
-                        .background(.quaternary.opacity(0.65), in: Circle())
                 }
                 .buttonStyle(.plain)
                 .help("Refresh")
@@ -98,14 +88,13 @@ struct MenuBarView: View {
 
     private var footer: some View {
         VStack(spacing: 0) {
-            FooterButton(title: "Settings...", systemImage: "gearshape") {
+            FooterButton(title: "Settings...") {
                 openSettings()
             }
 
             Divider()
-                .padding(.leading, 36)
 
-            FooterButton(title: "Quit Porchlight", systemImage: "power") {
+            FooterButton(title: "Quit Porchlight") {
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -125,16 +114,11 @@ struct MenuBarView: View {
 
 private struct FooterButton: View {
     let title: String
-    let systemImage: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 9) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18)
+            HStack {
                 Text(title)
                     .font(.system(size: 13))
                 Spacer()
