@@ -9,6 +9,7 @@ struct ServerGroup: Codable, Identifiable, Hashable {
     var id: String
     var name: String
     var color: String
+    var icon: String?
     var commandContains: [String]
     var workingDirectories: [String]
     var priority: Int
@@ -17,6 +18,7 @@ struct ServerGroup: Codable, Identifiable, Hashable {
         case id
         case name
         case color
+        case icon
         case commandContains = "command_contains"
         case workingDirectories = "working_directories"
         case priority
@@ -27,6 +29,7 @@ struct ServerGroup: Codable, Identifiable, Hashable {
             id: UUID().uuidString,
             name: "New Group",
             color: "#34C759",
+            icon: nil,
             commandContains: [],
             workingDirectories: [],
             priority: 100
@@ -38,6 +41,7 @@ struct ServerGroupMatch: Codable, Hashable {
     let id: String
     let name: String
     let color: String
+    let icon: String?
 }
 
 @MainActor

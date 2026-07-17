@@ -8,6 +8,9 @@ final class StatusBarController: NSObject {
     private var servers: [LocalServer] = []
     private var refreshTask: Task<Void, Never>?
     private var activeRefreshTask: Task<Void, Never>?
+    private var startingServerIDs: Set<String> = []
+    private var killingServerIDs: Set<String> = []
+    private var isMenuOpen = false
 
     init(mainWindowController: SettingsWindowController) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -45,13 +48,20 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func refresh() async {
+    private func refresh(rebuildWhileOpen: Bool = false) async {
+        let error = await loadServers()
+        if rebuildWhileOpen || !isMenuOpen {
+            rebuildMenu(error: error)
+        }
+    }
+
+    private func loadServers() async -> String? {
         do {
             servers = try await cli.listServers()
             statusItem.button?.image = PorchlightStatusIcon.image(isActive: servers.contains { $0.isActive })
-            rebuildMenu()
+            return nil
         } catch {
-            rebuildMenu(error: error.localizedDescription)
+            return error.localizedDescription
         }
     }
 
@@ -59,6 +69,13 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
+
+        populate(menu, error: error)
+        statusItem.menu = menu
+    }
+
+    private func populate(_ menu: NSMenu, error: String? = nil) {
+        menu.removeAllItems()
 
         if let error {
             let title = NSMenuItem(title: "Porchlight CLI failed", action: nil, keyEquivalent: "")
@@ -79,6 +96,7 @@ final class StatusBarController: NSObject {
         menu.addItem(.separator())
 
         menu.addItem(refreshMenuItem())
+        menu.addItem(killAllMenuItem())
 
         menu.addItem(.separator())
 
@@ -89,8 +107,11 @@ final class StatusBarController: NSObject {
         let quit = NSMenuItem(title: "Quit Porchlight", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
+    }
 
-        statusItem.menu = menu
+    private func repaintOpenMenu(error: String? = nil) {
+        guard isMenuOpen, let menu = statusItem.menu else { return }
+        populate(menu, error: error)
     }
 
     private func addServerItems(to menu: NSMenu) {
@@ -132,6 +153,7 @@ final class StatusBarController: NSObject {
     private func groupHeaderItem(for group: ServerGroupMatch) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.isEnabled = false
+        item.image = groupIconImage(group.icon)
         item.attributedTitle = NSAttributedString(
             string: group.name,
             attributes: [
@@ -142,17 +164,67 @@ final class StatusBarController: NSObject {
         return item
     }
 
+    private func groupIconImage(_ icon: String?) -> NSImage? {
+        guard let icon = icon?.trimmingCharacters(in: .whitespacesAndNewlines), !icon.isEmpty else {
+            return nil
+        }
+
+        let path: String
+        if let url = URL(string: icon), url.isFileURL {
+            path = url.path
+        } else if icon.hasPrefix("~") {
+            path = (icon as NSString).expandingTildeInPath
+        } else {
+            path = icon
+        }
+
+        guard let image = NSImage(contentsOfFile: path) else { return nil }
+        image.size = NSSize(width: 14, height: 14)
+        image.isTemplate = false
+        return image
+    }
+
+    private func serverIconImage(_ server: LocalServer) -> NSImage? {
+        groupIconImage(server.icon ?? server.group?.icon)
+    }
+
     private func menuItem(for server: LocalServer) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+
+        if isBusy(server) {
+            item.view = ServerMenuItemView(server: server)
+            return item
+        }
+
         item.attributedTitle = serverMenuTitle(server)
-        item.image = statusImage(isActive: server.isActive)
+        item.image = serverIconImage(server) ?? statusImage(isActive: server.isActive)
         item.submenu = submenu(for: server)
         return item
     }
 
+    private func isBusy(_ server: LocalServer) -> Bool {
+        startingServerIDs.contains(server.id) || killingServerIDs.contains(server.id)
+    }
+
     private func refreshMenuItem() -> NSMenuItem {
         let item = NSMenuItem()
-        item.view = RefreshMenuItemView(target: self, action: #selector(refreshNow))
+        item.view = RefreshMenuItemView(
+            title: "Refresh",
+            shortcut: "⌘R",
+            target: self,
+            action: #selector(refreshNow)
+        )
+        return item
+    }
+
+    private func killAllMenuItem() -> NSMenuItem {
+        let item = NSMenuItem()
+        item.view = RefreshMenuItemView(
+            title: "Kill All",
+            isEnabled: servers.contains { $0.isActive },
+            target: self,
+            action: #selector(killAll)
+        )
         return item
     }
 
@@ -198,10 +270,7 @@ final class StatusBarController: NSObject {
             let pin = pinMenuItem(for: server)
             submenu.addItem(pin)
 
-            let kill = NSMenuItem(title: "Kill", action: #selector(kill(_:)), keyEquivalent: "")
-            kill.target = self
-            kill.representedObject = server.id
-            submenu.addItem(kill)
+            submenu.addItem(killMenuItem(for: server))
 
             let killAndRemove = NSMenuItem(title: "Kill and Remove", action: #selector(killAndRemove(_:)), keyEquivalent: "")
             killAndRemove.target = self
@@ -211,11 +280,7 @@ final class StatusBarController: NSObject {
             let pin = pinMenuItem(for: server)
             submenu.addItem(pin)
 
-            let start = NSMenuItem(title: "Start", action: #selector(start(_:)), keyEquivalent: "")
-            start.target = self
-            start.representedObject = server.id
-            start.isEnabled = server.startCommand != nil
-            submenu.addItem(start)
+            submenu.addItem(startMenuItem(for: server))
 
             let remove = NSMenuItem(title: "Remove", action: #selector(remove(_:)), keyEquivalent: "")
             remove.target = self
@@ -230,6 +295,32 @@ final class StatusBarController: NSObject {
         let item = NSMenuItem(title: server.pinned ? "Unpin" : "Pin", action: #selector(togglePin(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = server.id
+        return item
+    }
+
+    private func startMenuItem(for server: LocalServer) -> NSMenuItem {
+        let item = NSMenuItem()
+        item.view = StartMenuItemView(
+            serverID: server.id,
+            isEnabled: server.resolvedStartCommand != nil,
+            isStarting: startingServerIDs.contains(server.id),
+            target: self,
+            action: #selector(startServer(_:))
+        )
+        return item
+    }
+
+    private func killMenuItem(for server: LocalServer) -> NSMenuItem {
+        let item = NSMenuItem()
+        item.view = StartMenuItemView(
+            serverID: server.id,
+            title: "Kill",
+            busyTitle: "Killing…",
+            isEnabled: true,
+            isStarting: killingServerIDs.contains(server.id),
+            target: self,
+            action: #selector(killServer(_:))
+        )
         return item
     }
 
@@ -304,7 +395,15 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func refreshNow() {
-        scheduleRefresh()
+        Task { [weak self] in
+            guard let self else { return }
+            let error = await loadServers()
+            if let menu = statusItem.menu {
+                populate(menu, error: error)
+            } else {
+                rebuildMenu(error: error)
+            }
+        }
     }
 
     @objc private func openPorchlight() {
@@ -342,8 +441,16 @@ final class StatusBarController: NSObject {
         NSPasteboard.general.setString(server.command, forType: .string)
     }
 
-    @objc private func start(_ sender: NSMenuItem) {
-        guard let server = server(for: sender), let startCommand = server.startCommand else { return }
+    @objc private func startServer(_ sender: Any?) {
+        guard let serverID = sender as? String,
+              let server = servers.first(where: { $0.id == serverID }),
+              let startCommand = server.resolvedStartCommand,
+              !startingServerIDs.contains(server.id)
+        else { return }
+
+        startingServerIDs.insert(server.id)
+        repaintOpenMenu()
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-lc", startCommand]
@@ -351,7 +458,80 @@ final class StatusBarController: NSObject {
             process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         }
         try? process.run()
-        Task { await refresh() }
+
+        Task { [weak self] in
+            await self?.refreshUntilActive(serverID: server.id)
+        }
+    }
+
+    @objc private func killServer(_ sender: Any?) {
+        guard let serverID = sender as? String,
+              let server = servers.first(where: { $0.id == serverID }),
+              !killingServerIDs.contains(server.id)
+        else { return }
+
+        killingServerIDs.insert(server.id)
+        repaintOpenMenu()
+
+        Task { [weak self] in
+            guard let self else { return }
+            try? await cli.killServer(server)
+            await refresh()
+            killingServerIDs.remove(server.id)
+            if isMenuOpen {
+                repaintOpenMenu()
+            } else {
+                rebuildMenu()
+            }
+        }
+    }
+
+    @objc private func killAll() {
+        let activeServers = servers.filter { $0.isActive }
+        guard !activeServers.isEmpty else { return }
+
+        activeServers.forEach { killingServerIDs.insert($0.id) }
+        repaintOpenMenu()
+
+        Task { [weak self] in
+            guard let self else { return }
+            for server in activeServers {
+                try? await cli.killServer(server)
+            }
+            await refresh()
+            activeServers.forEach { killingServerIDs.remove($0.id) }
+            if isMenuOpen {
+                repaintOpenMenu()
+            } else {
+                rebuildMenu()
+            }
+        }
+    }
+
+    private func refreshUntilActive(serverID: String) async {
+        await refresh()
+
+        for _ in 0..<10 {
+            try? await Task.sleep(for: .milliseconds(700))
+            await refresh()
+
+            if servers.contains(where: { $0.id == serverID && $0.isActive }) {
+                startingServerIDs.remove(serverID)
+                if isMenuOpen {
+                    repaintOpenMenu()
+                } else {
+                    rebuildMenu()
+                }
+                return
+            }
+        }
+
+        startingServerIDs.remove(serverID)
+        if isMenuOpen {
+            repaintOpenMenu()
+        } else {
+            rebuildMenu()
+        }
     }
 
     @objc private func kill(_ sender: NSMenuItem) {
@@ -420,87 +600,18 @@ final class StatusBarController: NSObject {
     }
 }
 
-private final class RefreshMenuItemView: NSView {
-    private weak var target: AnyObject?
-    private let action: Selector
-    private var isHovered = false {
-        didSet { needsDisplay = true }
-    }
-
-    init(target: AnyObject, action: Selector) {
-        self.target = target
-        self.action = action
-        super.init(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
-        addTrackingArea(NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self
-        ))
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        if isHovered {
-            NSColor.selectedContentBackgroundColor.setFill()
-            NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 1), xRadius: 5, yRadius: 5).fill()
-        }
-
-        let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.menuFont(ofSize: 0),
-            .foregroundColor: isHovered ? NSColor.selectedMenuItemTextColor : NSColor.labelColor
-        ]
-        let shortcutAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.menuFont(ofSize: 0),
-            .foregroundColor: isHovered ? NSColor.selectedMenuItemTextColor : NSColor.secondaryLabelColor
-        ]
-
-        let title = NSAttributedString(string: "Refresh", attributes: titleAttributes)
-        title.draw(at: NSPoint(x: 14, y: 4))
-
-        let shortcut = NSAttributedString(string: "⌘R", attributes: shortcutAttributes)
-        shortcut.draw(at: NSPoint(x: bounds.width - shortcut.size().width - 14, y: 4))
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isHovered = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovered = false
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        _ = target?.perform(action, with: nil)
-    }
-}
-
 extension StatusBarController: NSMenuDelegate {
     nonisolated func menuWillOpen(_ menu: NSMenu) {
         Task { @MainActor in
+            self.isMenuOpen = true
             self.scheduleRefresh()
         }
     }
-}
 
-private extension NSColor {
-    convenience init?(hex: String) {
-        let value = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        guard value.count == 6 else { return nil }
-
-        let scanner = Scanner(string: value)
-        var rgb: UInt64 = 0
-        guard scanner.scanHexInt64(&rgb) else { return nil }
-
-        self.init(
-            srgbRed: CGFloat((rgb & 0xFF0000) >> 16) / 255,
-            green: CGFloat((rgb & 0x00FF00) >> 8) / 255,
-            blue: CGFloat(rgb & 0x0000FF) / 255,
-            alpha: 1
-        )
+    nonisolated func menuDidClose(_ menu: NSMenu) {
+        Task { @MainActor in
+            self.isMenuOpen = false
+            self.scheduleRefresh()
+        }
     }
 }

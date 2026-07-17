@@ -11,6 +11,7 @@ final class ServerListViewModel {
     var errorMessage: String?
     var isRefreshing = false
     var killingServerIDs: Set<String> = []
+    var startingServerIDs: Set<String> = []
     var lastRefreshedAt: Date?
 
     var hasActiveServers: Bool {
@@ -34,6 +35,7 @@ final class ServerListViewModel {
     }
 
     func refresh() async {
+        guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" else { return }
         isRefreshing = true
         defer { isRefreshing = false }
 
@@ -77,7 +79,11 @@ final class ServerListViewModel {
     }
 
     func start(_ server: LocalServer) async {
-        guard let startCommand = server.startCommand else { return }
+        guard let startCommand = server.resolvedStartCommand else { return }
+        guard !startingServerIDs.contains(server.id) else { return }
+
+        startingServerIDs.insert(server.id)
+        defer { startingServerIDs.remove(server.id) }
 
         do {
             let process = Process()
@@ -89,8 +95,20 @@ final class ServerListViewModel {
             try process.run()
             errorMessage = nil
             await refresh()
+            await refreshUntilActive(serverID: server.id)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshUntilActive(serverID: String) async {
+        for _ in 0..<10 {
+            try? await Task.sleep(for: .milliseconds(700))
+            await refresh()
+
+            if servers.contains(where: { $0.id == serverID && $0.isActive }) {
+                return
+            }
         }
     }
 

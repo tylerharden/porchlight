@@ -65,43 +65,38 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            NavigationSplitView {
+            HSplitView {
                 List(selection: $selectedServerID) {
                     Section {
-                        if viewModel.servers.isEmpty {
-                            CompactEmptyState(
-                                title: "No Servers",
-                                systemImage: "lightbulb",
-                                description: "Start a local development server and it will appear here."
+                        ForEach(viewModel.servers) { server in
+                            ServerRowView(
+                                server: server,
+                                isStarting: viewModel.startingServerIDs.contains(server.id)
                             )
-                        } else {
-                            ForEach(viewModel.servers) { server in
-                                ServerRowView(server: server)
-                                    .tag(server.id)
-                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                        if server.isActive {
-                                            Button("Turn Off", role: .destructive) {
-                                                Task { await viewModel.kill(server) }
-                                            }
-                                        } else {
-                                            Button("Turn On") {
-                                                Task { await viewModel.start(server) }
-                                            }
-                                            .disabled(server.startCommand == nil)
+                                .tag(server.id)
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    if server.isActive {
+                                        Button("Turn Off", role: .destructive) {
+                                            Task { await viewModel.kill(server) }
+                                        }
+                                    } else {
+                                        Button("Turn On") {
+                                            Task { await viewModel.start(server) }
+                                        }
+                                        .disabled(server.resolvedStartCommand == nil)
+                                    }
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    if server.pinned {
+                                        Button("Unpin") {
+                                            Task { await viewModel.togglePin(server) }
+                                        }
+                                    } else {
+                                        Button("Remove", role: .destructive) {
+                                            Task { await viewModel.remove(server) }
                                         }
                                     }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        if server.pinned {
-                                            Button("Unpin") {
-                                                Task { await viewModel.togglePin(server) }
-                                            }
-                                        } else {
-                                            Button("Remove", role: .destructive) {
-                                                Task { await viewModel.remove(server) }
-                                            }
-                                        }
-                                    }
-                            }
+                                }
                         }
                     } header: {
                         HStack {
@@ -118,19 +113,30 @@ struct SettingsView: View {
                     }
                 }
                 .listStyle(.sidebar)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 230, max: 280)
-            } detail: {
-                if let selectedServer {
-                    ServerDetailView(server: selectedServer, viewModel: viewModel)
-                } else {
-                    CompactEmptyState(
-                        title: "Select a Server",
-                        systemImage: "lightbulb",
-                        description: "Choose a port to see details."
-                    )
+                .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
+                .overlay {
+                    if viewModel.servers.isEmpty {
+                        CompactEmptyState(
+                            title: "No Servers",
+                            systemImage: "lightbulb",
+                            description: "Start a local development server and it will appear here."
+                        )
+                        .background(Color(nsColor: .windowBackgroundColor))
+                    }
+                }
+
+                Group {
+                    if let selectedServer {
+                        ServerDetailView(server: selectedServer, viewModel: viewModel)
+                    } else {
+                        CompactEmptyState(
+                            title: "Select a Server",
+                            systemImage: "lightbulb",
+                            description: "Choose a port to see details."
+                        )
+                    }
                 }
             }
-            .toolbar(removing: .sidebarToggle)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear(perform: selectFallbackServer)
@@ -175,31 +181,21 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            NavigationSplitView {
+            HSplitView {
                 List(selection: $selectedGroupID) {
                     Section {
-                        if groupStore.groups.isEmpty {
-                            CompactEmptyState(
-                                title: "No Groups",
-                                systemImage: "folder.badge.plus",
-                                description: "Create a group to tag matching servers."
-                            )
-                        } else {
-                            ForEach(groupStore.groups) { group in
-                                Label {
-                                    Text(group.name)
-                                } icon: {
-                                    Circle()
-                                        .fill(Color(hex: group.color))
-                                        .frame(width: 10, height: 10)
-                                }
-                                .tag(group.id)
+                        ForEach(groupStore.groups) { group in
+                            Label {
+                                Text(group.name)
+                            } icon: {
+                                GroupIconView(icon: group.icon, color: group.color, size: 10)
                             }
-                            .onDelete { offsets in
-                                let ids = offsets.map { groupStore.groups[$0].id }
-                                ids.forEach(groupStore.deleteGroup)
-                                selectFallbackGroup()
-                            }
+                            .tag(group.id)
+                        }
+                        .onDelete { offsets in
+                            let ids = offsets.map { groupStore.groups[$0].id }
+                            ids.forEach(groupStore.deleteGroup)
+                            selectFallbackGroup()
                         }
                     } header: {
                         HStack {
@@ -215,19 +211,30 @@ struct SettingsView: View {
                     }
                 }
                 .listStyle(.sidebar)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 230, max: 280)
-            } detail: {
-                if let selectedGroupID {
-                    GroupDetailView(groupID: selectedGroupID, store: groupStore)
-                } else {
-                    CompactEmptyState(
-                        title: "Select a Group",
-                        systemImage: "folder",
-                        description: "Groups match servers without changing their type."
-                    )
+                .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
+                .overlay {
+                    if groupStore.groups.isEmpty {
+                        CompactEmptyState(
+                            title: "No Groups",
+                            systemImage: "folder.badge.plus",
+                            description: "Create a group to tag matching servers."
+                        )
+                        .background(Color(nsColor: .windowBackgroundColor))
+                    }
+                }
+
+                Group {
+                    if let selectedGroupID {
+                        GroupDetailView(groupID: selectedGroupID, store: groupStore)
+                    } else {
+                        CompactEmptyState(
+                            title: "Select a Group",
+                            systemImage: "folder",
+                            description: "Groups match servers without changing their type."
+                        )
+                    }
                 }
             }
-            .toolbar(removing: .sidebarToggle)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear(perform: selectFallbackGroup)
@@ -349,7 +356,6 @@ private enum PorchlightTab: String, CaseIterable, Identifiable {
         case .about: "info.circle"
         }
     }
-
 }
 
 private struct TabButton: View {
@@ -400,304 +406,14 @@ private struct PreferenceRow<Content: View>: View {
     }
 }
 
-private struct StatusDot: View {
-    let color: Color
-
-    var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: 12, height: 12)
-    }
-}
-
-private struct ServerDetailView: View {
-    let server: LocalServer
-    let viewModel: ServerListViewModel
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    StatusDot(color: server.isActive ? .green : .gray)
-                    Text(verbatim: "localhost:\(server.port)")
-                        .font(.title2.weight(.semibold))
-                    Text(server.serverType)
-                        .foregroundStyle(.secondary)
-                    if server.pinned {
-                        Image(systemName: "pin.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    if let group = server.group {
-                        Label(group.name, systemImage: "folder.fill")
-                            .foregroundStyle(Color(hex: group.color))
-                    }
-                }
-
-                HStack(spacing: 8) {
-                    Button("Open") { viewModel.open(server) }
-                        .disabled(!server.isActive)
-
-                    if server.workingDirectory != nil {
-                        Button("Open in Finder") { viewModel.openInFinder(server) }
-
-                        Menu("Open in App") {
-                            Button("Visual Studio Code") { viewModel.openInVSCode(server) }
-                            Button("Xcode") { viewModel.openInXcode(server) }
-                                .disabled(!server.canOpenInXcode)
-                        }
-                    }
-
-                    if server.isActive {
-                        Button("Turn Off", role: .destructive) {
-                            Task { await viewModel.kill(server) }
-                        }
-                    } else {
-                        Button("Turn On") {
-                            Task { await viewModel.start(server) }
-                        }
-                        .disabled(server.startCommand == nil)
-                    }
-
-                    Button(server.pinned ? "Unpin" : "Pin") {
-                        Task { await viewModel.togglePin(server) }
-                    }
-
-                    Button("Remove", role: .destructive) {
-                        Task { await viewModel.remove(server) }
-                    }
-                }
-
-                Divider()
-
-                DetailRow(label: "Status", value: server.status.rawValue.capitalized)
-                if let group = server.group {
-                    DetailRow(label: "Group", value: group.name)
-                }
-                DetailRow(label: "URL", value: server.url)
-                DetailRow(label: "Process", value: "pid \(server.pid) • \(server.processName)")
-                DetailRow(label: "Path", value: server.locationText)
-                DetailRow(label: "Command", value: server.command)
-
-                if let lastSeenText = server.lastSeenText {
-                    DetailRow(label: "Last Seen", value: lastSeenText)
-                }
-
-                if let startCommand = server.startCommand {
-                    DetailRow(label: "Start Command", value: startCommand)
-                }
-            }
-            .padding(24)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct GroupDetailView: View {
-    let groupID: ServerGroup.ID
-    @Bindable var store: ServerGroupStore
-    @State private var commandText = ""
-    @State private var directoryText = ""
-
-    var body: some View {
-        if
-            let name = store.binding(for: groupID, keyPath: \.name),
-            let color = store.binding(for: groupID, keyPath: \.color),
-            let priority = store.binding(for: groupID, keyPath: \.priority),
-            let group = store.groups.first(where: { $0.id == groupID })
-        {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    HStack(alignment: .center, spacing: 10) {
-                        Circle()
-                            .fill(Color(hex: color.wrappedValue))
-                            .frame(width: 12, height: 12)
-                        Text(name.wrappedValue)
-                            .font(.title2.weight(.semibold))
-                    }
-
-                    Divider()
-
-                    DetailEditorRow(label: "Name") {
-                        TextField("Group name", text: name)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    DetailEditorRow(label: "Colour") {
-                        HStack {
-                            ColorPicker("", selection: colorBinding(color))
-                                .labelsHidden()
-                            TextField("#34C759", text: color)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 100)
-                        }
-                    }
-
-                    DetailEditorRow(label: "Command Contains") {
-                        ChipEditor(
-                            placeholder: "manage.py runserver",
-                            text: $commandText,
-                            values: group.commandContains,
-                            add: { store.addCommand(commandText, to: groupID); commandText = "" },
-                            remove: { store.removeCommand($0, from: groupID) }
-                        )
-                    }
-
-                    DetailEditorRow(label: "Working Directory") {
-                        ChipEditor(
-                            placeholder: "/Users/tyler/Developer/ausmusicfinder",
-                            text: $directoryText,
-                            values: group.workingDirectories,
-                            add: { store.addWorkingDirectory(directoryText, to: groupID); directoryText = "" },
-                            remove: { store.removeWorkingDirectory($0, from: groupID) }
-                        )
-                    }
-
-                    DetailEditorRow(label: "Priority") {
-                        Stepper(value: priority, in: 0...1000, step: 10) {
-                            Text(priority.wrappedValue.formatted())
-                        }
-                    }
-
-                    Divider()
-
-                    Button("Delete Group", role: .destructive) {
-                        store.deleteGroup(id: groupID)
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        } else {
-            CompactEmptyState(title: "Group Not Found", systemImage: "folder.badge.questionmark")
-        }
-    }
-
-    private func colorBinding(_ hex: Binding<String>) -> Binding<Color> {
-        Binding(
-            get: { Color(hex: hex.wrappedValue) },
-            set: { hex.wrappedValue = $0.hexString }
-        )
-    }
-}
-
-private struct ChipEditor: View {
-    let placeholder: String
-    @Binding var text: String
-    let values: [String]
-    let add: () -> Void
-    let remove: (String) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                TextField(placeholder, text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit(addIfNeeded)
-                Button("Add", action: addIfNeeded)
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-
-            if values.isEmpty {
-                Text("No values yet.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(values, id: \.self) { value in
-                        HStack(spacing: 6) {
-                            Text(value)
-                                .textSelection(.enabled)
-                                .lineLimit(1)
-                            Button {
-                                remove(value)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
-                    }
-                }
-            }
-        }
-    }
-
-    private func addIfNeeded() {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        add()
-    }
-}
-
-private struct DetailEditorRow<Content: View>: View {
-    let label: String
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(label)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 140, alignment: .trailing)
-            content
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct CompactEmptyState: View {
-    let title: String
-    let systemImage: String
-    var description: String?
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .foregroundStyle(.tertiary)
-            Text(title)
-                .font(.callout.weight(.semibold))
-            if let description {
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct DetailRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 8) {
-            GridRow {
-                Text(label)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 110, alignment: .trailing)
-                Text(value)
-                    .textSelection(.enabled)
-                    .lineLimit(nil)
-            }
-        }
-    }
-}
-
 #Preview {
     let vm = ServerListViewModel()
     vm.servers = [
         LocalServer(
             id: "1", port: 3000, pid: 1234, status: .active,
             processName: "node", serverType: "Next.js",
-            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF"),
+            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF", icon: nil),
+            icon: nil,
             command: "next dev",
             workingDirectory: "/Users/tyler/Developer/myapp",
             displayDirectory: "~/Developer/myapp",
@@ -708,6 +424,7 @@ private struct DetailRow: View {
             id: "2", port: 8000, pid: 5678, status: .recent,
             processName: "python", serverType: "Django",
             group: nil,
+            icon: nil,
             command: "python manage.py runserver",
             workingDirectory: "/Users/tyler/Developer/backend",
             displayDirectory: "~/Developer/backend",

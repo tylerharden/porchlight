@@ -12,6 +12,7 @@ struct LocalServer: Decodable, Identifiable, Hashable {
     let processName: String
     let serverType: String
     let group: ServerGroupMatch?
+    let icon: String?
     let command: String
     let workingDirectory: String?
     let displayDirectory: String?
@@ -28,6 +29,7 @@ struct LocalServer: Decodable, Identifiable, Hashable {
         case processName = "process_name"
         case serverType = "server_type"
         case group
+        case icon
         case command
         case workingDirectory = "working_directory"
         case displayDirectory = "display_directory"
@@ -43,6 +45,15 @@ struct LocalServer: Decodable, Identifiable, Hashable {
 
     var isActive: Bool {
         status == .active
+    }
+
+    var resolvedStartCommand: String? {
+        if let startCommand, !startCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return startCommand
+        }
+
+        let command = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        return command.isEmpty ? nil : command
     }
 
     var lastSeenDate: Date? {

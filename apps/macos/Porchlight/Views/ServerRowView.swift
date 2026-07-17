@@ -2,12 +2,19 @@ import SwiftUI
 
 struct ServerRowView: View {
     let server: LocalServer
+    var isStarting = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(server.isActive ? Color.green : Color.gray.opacity(0.45))
-                .frame(width: 12, height: 12)
+            if isStarting {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 12, height: 12)
+            } else {
+                Circle()
+                    .fill(server.isActive ? Color.green : Color.gray.opacity(0.45))
+                    .frame(width: 12, height: 12)
+            }
 
             Text(verbatim: String(server.port))
                 .font(.body)
@@ -17,13 +24,13 @@ struct ServerRowView: View {
                 .foregroundStyle(.secondary)
 
             if let group = server.group {
-                Circle()
-                    .fill(Color(hex: group.color))
-                    .frame(width: 7, height: 7)
+                GroupIconView(icon: server.icon ?? group.icon, color: group.color, size: 8)
 
                 Text(group.name)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } else if server.icon != nil {
+                GroupIconView(icon: server.icon, color: "#8E8E93", size: 8)
             }
 
             if server.pinned {
@@ -34,7 +41,7 @@ struct ServerRowView: View {
 
             Spacer()
         }
-        .opacity(server.isActive ? 1 : 0.62)
+        .opacity(server.isActive || isStarting ? 1 : 0.62)
     }
 }
 
@@ -43,7 +50,8 @@ struct ServerRowView: View {
         ServerRowView(server: LocalServer(
             id: "1", port: 3000, pid: 1234, status: .active,
             processName: "node", serverType: "Next.js",
-            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF"),
+            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF", icon: nil),
+            icon: nil,
             command: "next dev",
             workingDirectory: "/Users/tyler/Developer/myapp",
             displayDirectory: "~/Developer/myapp",
@@ -58,6 +66,7 @@ struct ServerRowView: View {
             id: "2", port: 8000, pid: 5678, status: .recent,
             processName: "python", serverType: "Django",
             group: nil,
+            icon: nil,
             command: "python manage.py runserver",
             workingDirectory: "/Users/tyler/Developer/backend",
             displayDirectory: "~/Developer/backend",
