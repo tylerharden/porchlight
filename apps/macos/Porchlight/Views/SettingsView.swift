@@ -1,17 +1,19 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
     @Bindable var viewModel: ServerListViewModel
+    @Bindable var settings: AppSettings
     var onTabChange: (String) -> Void = { _ in }
     @State private var groupStore = ServerGroupStore()
     @State private var selectedTab = PorchlightTab.servers
     @State private var selectedServerID: LocalServer.ID?
     @State private var selectedGroupID: ServerGroup.ID?
-    @State private var autoRefresh = true
-    @State private var refreshInterval = 2.0
-    @State private var launchAtLogin = false
-    @State private var hideDockIcon = true
-    @State private var hideMenuIconWhenEmpty = false
+    private let repositoryURL = URL(string: "https://github.com/tylerharden/porchlight")!
+    private let readmeURL = URL(string: "https://github.com/tylerharden/porchlight#readme")!
+    private let issuesURL = URL(string: "https://github.com/tylerharden/porchlight/issues/new")!
+    private let termsURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/TERMS_OF_USE.md")!
+    private let privacyURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/PRIVACY_POLICY.md")!
 
     var body: some View {
         VStack(spacing: 0) {
@@ -258,24 +260,29 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             PreferenceRow(label: "General:") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Toggle("Refresh server list", isOn: $autoRefresh)
+                    Toggle("Refresh server list", isOn: $settings.autoRefresh)
                     HStack(spacing: 12) {
-                        Toggle("", isOn: $autoRefresh)
+                        Toggle("", isOn: $settings.autoRefresh)
                             .labelsHidden()
                             .opacity(0)
                             .disabled(true)
                         Text("Every")
-                            .foregroundStyle(autoRefresh ? .primary : .secondary)
-                        Stepper("\(Int(refreshInterval)) seconds", value: $refreshInterval, in: 1...30, step: 1)
-                            .disabled(!autoRefresh)
+                            .foregroundStyle(settings.autoRefresh ? .primary : .secondary)
+                        Stepper("\(Int(settings.refreshInterval)) seconds", value: $settings.refreshInterval, in: 1...30, step: 1)
+                            .disabled(!settings.autoRefresh)
                     }
-                    Toggle("Launch Porchlight at login", isOn: $launchAtLogin)
+                    Toggle("Launch Porchlight at login", isOn: $settings.launchAtLogin)
+                    if let errorMessage = settings.errorMessage {
+                        Text(errorMessage)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
 
             PreferenceRow(label: "Window:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide Dock icon", isOn: $hideDockIcon)
+                    Toggle("Hide Dock icon", isOn: $settings.hideDockIcon)
                     Text("Hide the Dock icon when all windows are closed.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -284,7 +291,7 @@ struct SettingsView: View {
 
             PreferenceRow(label: "Menu Bar:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide icon when no servers are active", isOn: $hideMenuIconWhenEmpty)
+                    Toggle("Hide icon when no servers are active", isOn: $settings.hideMenuIconWhenEmpty)
                     Text("Keep Porchlight quiet until there is something useful to show.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -295,7 +302,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Manage Porchlight from the Terminal.")
                     Spacer()
-                    Button("Show me how") {}
+                    Button("Show me how") { open(readmeURL) }
                 }
             }
         }
@@ -319,16 +326,25 @@ struct SettingsView: View {
                     Text("Find the servers you left on.")
                         .foregroundStyle(.secondary)
 
-                    Button("Report an Issue...") {}
+                    Button("Report an Issue...") { open(issuesURL) }
                         .padding(.top, 10)
                 }
                 .frame(width: 210, alignment: .leading)
             }
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Text("Porchlight runs locally and uses the bundled Rust CLI to inspect development servers.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Button("GitHub") { open(repositoryURL) }
+                    Button("Report an Issue...") { open(issuesURL) }
+                    Button("Terms") { open(termsURL) }
+                    Button("Privacy") { open(privacyURL) }
+                }
+
+                legalPane
 
                 Text("© 2026 Porchlight. All rights reserved.")
                     .foregroundStyle(.secondary)
@@ -337,6 +353,29 @@ struct SettingsView: View {
             .frame(maxWidth: 460)
         }
         .frame(maxWidth: .infinity, minHeight: 340, alignment: .center)
+    }
+
+    private var legalPane: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider()
+
+            Text("Terms of Use")
+                .font(.headline)
+            Text("Porchlight is provided as-is for local development workflows. You are responsible for how you use the app, including any processes you start, stop, remove, or expose. The app may change over time and no warranty is provided to the maximum extent permitted by law.")
+
+            Text("Privacy Policy")
+                .font(.headline)
+                .padding(.top, 4)
+            Text("Porchlight runs locally on your Mac. It inspects local listening ports and process metadata to show development servers. It does not create an account, track usage, or send server/process data to Tyler Harden or any third-party analytics service. If you open GitHub links or submit issues, GitHub's terms and privacy policy apply.")
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: 520, alignment: .leading)
+    }
+
+    private func open(_ url: URL) {
+        NSWorkspace.shared.open(url)
     }
 }
 
@@ -432,6 +471,6 @@ private struct PreferenceRow<Content: View>: View {
             pinned: false, lastSeenAt: nil, startCommand: nil
         ),
     ]
-    return SettingsView(viewModel: vm)
+    return SettingsView(viewModel: vm, settings: AppSettings())
         .frame(width: 680, height: 520)
 }

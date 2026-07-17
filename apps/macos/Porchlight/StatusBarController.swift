@@ -5,22 +5,35 @@ final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let cli = PorchlightCLI()
     private let mainWindowController: SettingsWindowController
+    private let settings: AppSettings
     private var servers: [LocalServer] = []
     private var refreshTask: Task<Void, Never>?
     private var activeRefreshTask: Task<Void, Never>?
+    private var settingsObserver: NSObjectProtocol?
     private var startingServerIDs: Set<String> = []
     private var killingServerIDs: Set<String> = []
     private var isMenuOpen = false
 
-    init(mainWindowController: SettingsWindowController) {
+    init(mainWindowController: SettingsWindowController, settings: AppSettings) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.mainWindowController = mainWindowController
+        self.settings = settings
         super.init()
 
         statusItem.button?.image = PorchlightStatusIcon.image(isActive: false)
         statusItem.button?.imagePosition = .imageOnly
 
         rebuildMenu()
+        applyMenuVisibility()
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: AppSettings.didChangeNotification,
+            object: settings,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.applyMenuVisibility()
+            }
+        }
         refreshTask = Task { [weak self] in
             await self?.refreshLoop()
         }
@@ -34,8 +47,11 @@ final class StatusBarController: NSObject {
         await refresh()
 
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(2))
-            scheduleRefresh()
+            let interval = UInt64(max(1, settings.refreshInterval) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: interval)
+            if settings.autoRefresh {
+                scheduleRefresh()
+            }
         }
     }
 
@@ -59,10 +75,16 @@ final class StatusBarController: NSObject {
         do {
             servers = try await cli.listServers()
             statusItem.button?.image = PorchlightStatusIcon.image(isActive: servers.contains { $0.isActive })
+            applyMenuVisibility()
             return nil
         } catch {
+            applyMenuVisibility()
             return error.localizedDescription
         }
+    }
+
+    private func applyMenuVisibility() {
+        statusItem.isVisible = !settings.hideMenuIconWhenEmpty || servers.contains { $0.isActive }
     }
 
     private func rebuildMenu(error: String? = nil) {

@@ -4,8 +4,10 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static var sharedDelegate: AppDelegate?
-    private let mainWindowController = SettingsWindowController()
+    private let settings = AppSettings()
+    private lazy var mainWindowController = SettingsWindowController(settings: settings)
     private var statusBarController: StatusBarController?
+    private var settingsObserver: NSObjectProtocol?
 
     static func main() {
         let app = NSApplication.shared
@@ -19,7 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.applicationIconImage = PorchlightAppIcon.image
-        statusBarController = StatusBarController(mainWindowController: mainWindowController)
+        statusBarController = StatusBarController(mainWindowController: mainWindowController, settings: settings)
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: AppSettings.didChangeNotification,
+            object: settings,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.applyActivationPolicy() }
+        }
         mainWindowController.show()
     }
 
@@ -53,5 +62,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showPorchlight() {
         mainWindowController.show()
+    }
+
+    private func applyActivationPolicy() {
+        if settings.hideDockIcon && !mainWindowController.isWindowVisible {
+            NSApp.setActivationPolicy(.accessory)
+        } else {
+            NSApp.setActivationPolicy(.regular)
+        }
     }
 }

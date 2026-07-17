@@ -3,8 +3,18 @@ import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
+    private let settings: AppSettings
     private let viewModel = ServerListViewModel()
     private var window: NSWindow?
+
+    var isWindowVisible: Bool {
+        window?.isVisible == true
+    }
+
+    init(settings: AppSettings) {
+        self.settings = settings
+        super.init()
+    }
 
     func show() {
         NSApp.setActivationPolicy(.regular)
@@ -30,7 +40,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.toolbarStyle = .unifiedCompact
         window.center()
         window.delegate = self
-        window.contentView = NSHostingView(rootView: SettingsView(viewModel: viewModel) { [weak window] title in
+        window.contentView = NSHostingView(rootView: SettingsView(viewModel: viewModel, settings: settings) { [weak window] title in
             window?.title = title
         })
         window.isReleasedWhenClosed = false
@@ -39,6 +49,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         window = nil
-        NSApp.setActivationPolicy(.accessory)
+        if settings.hideDockIcon {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 }
