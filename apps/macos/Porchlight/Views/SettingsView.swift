@@ -311,37 +311,35 @@ struct SettingsView: View {
 
     private var aboutPane: some View {
         VStack(spacing: 34) {
-            HStack(alignment: .top, spacing: 50) {
+            HStack(alignment: .top, spacing: 34) {
                 Image(nsImage: PorchlightAppIcon.image)
                     .resizable()
-                    .frame(width: 160, height: 160)
+                    .frame(width: 128, height: 128)
 
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Porchlight")
-                        .font(.title2.weight(.semibold))
+                        .font(.title3.weight(.semibold))
 
                     Text("Version 0.1.0")
-                        .font(.title3.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     Text("Find the servers you left on.")
-                        .font(.title3)
                         .foregroundStyle(.secondary)
 
-                    VStack(alignment: .leading, spacing: 9) {
+                    VStack(alignment: .leading, spacing: 8) {
                         LinkButton("Acknowledgements", url: repositoryURL)
                         LinkButton("Privacy Policy", url: privacyURL)
                         LinkButton("Terms of Use", url: termsURL)
                     }
-                    .padding(.top, 14)
+                    .padding(.top, 10)
 
                     Button("Report an Issue...") { open(issuesURL) }
                         .padding(.top, 10)
                 }
-                .frame(width: 270, alignment: .leading)
+                .frame(width: 210, alignment: .leading)
             }
 
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
                 Text("Porchlight runs locally and uses the bundled Rust CLI to inspect development servers.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -349,10 +347,10 @@ struct SettingsView: View {
                 Text("© 2026 Porchlight. All rights reserved.")
                     .foregroundStyle(.secondary)
             }
-            .font(.title3)
-            .frame(maxWidth: 620)
+            .font(.callout)
+            .frame(maxWidth: 460)
         }
-        .frame(maxWidth: .infinity, minHeight: 520, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: 340, alignment: .center)
     }
 
     private func open(_ url: URL) {
@@ -440,7 +438,6 @@ private struct LinkButton: View {
             NSWorkspace.shared.open(url)
         }
         .buttonStyle(.plain)
-        .font(.title3)
         .foregroundStyle(.blue)
     }
 }
