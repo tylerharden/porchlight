@@ -4,6 +4,7 @@ use crate::model::{
     discover_project_icon, infer_server_group, infer_server_type, LocalServer, ServerStatus,
 };
 use std::collections::HashSet;
+use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +18,7 @@ pub struct LsofListener {
 struct ProcessDetails {
     command: String,
     working_directory: Option<String>,
+    open_paths: Vec<String>,
 }
 
 pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
@@ -33,9 +35,15 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
         let Ok(process) = process_details(listener.pid) else {
             continue;
         };
-        let working_directory = process.working_directory;
+        let live_server_directory = vscode_live_server_directory(listener.port, &process);
+        let is_vscode_live_server = live_server_directory.is_some();
+        let working_directory = live_server_directory.or(process.working_directory);
 
-        if !config.includes(
+        if config.excluded_port_set().contains(&listener.port) {
+            continue;
+        }
+
+        if !is_vscode_live_server && !config.includes(
             &listener.process_name,
             &process.command,
             working_directory.as_deref(),
@@ -44,7 +52,11 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             continue;
         }
 
-        let server_type = infer_server_type(&listener.process_name, &process.command);
+        let server_type = if is_vscode_live_server {
+            "Live Server".to_string()
+        } else {
+            infer_server_type(&listener.process_name, &process.command)
+        };
         let group = infer_server_group(&process.command, working_directory.as_deref());
         let icon = working_directory.as_deref().and_then(discover_project_icon);
         let display_directory = working_directory.as_deref().map(display_directory);
@@ -121,10 +133,62 @@ fn process_details(pid: u32) -> Result<ProcessDetails, ScannerError> {
             .find_map(|line| line.strip_prefix('n').map(ToString::to_string))
     });
 
+    let open_paths = if looks_like_vscode_helper(&command) {
+        run_command("/usr/sbin/lsof", &["-a", "-p", &pid_text, "-Fn"])
+            .ok()
+            .map(parse_lsof_names)
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
     Ok(ProcessDetails {
         command,
         working_directory,
+        open_paths,
     })
+}
+
+fn parse_lsof_names(output: String) -> Vec<String> {
+    output
+        .lines()
+        .filter_map(|line| line.strip_prefix('n').map(ToString::to_string))
+        .collect()
+}
+
+fn vscode_live_server_directory(port: u16, process: &ProcessDetails) -> Option<String> {
+    if !(5500..=5599).contains(&port) {
+        return None;
+    }
+
+    if !looks_like_vscode_helper(&process.command) {
+        return None;
+    }
+
+    if !process
+        .open_paths
+        .iter()
+        .any(|path| path.contains("/.vscode/extensions/ritwickdey.liveserver-"))
+    {
+        return None;
+    }
+
+    process
+        .open_paths
+        .iter()
+        .filter(|path| path.starts_with('/'))
+        .filter(|path| path.as_str() != "/")
+        .filter(|path| !path.contains("/Library/"))
+        .filter(|path| !path.contains("/.vscode/"))
+        .filter(|path| !path.contains("/Applications/"))
+        .filter(|path| Path::new(path).is_dir())
+        .max_by_key(|path| path.len())
+        .cloned()
+}
+
+fn looks_like_vscode_helper(command: &str) -> bool {
+    let command = command.to_lowercase();
+    command.contains("visual studio code.app") || command.contains("code helper")
 }
 
 fn run_command(executable: &str, arguments: &[&str]) -> Result<String, ScannerError> {
@@ -159,7 +223,7 @@ fn server_id(port: u16, working_directory: Option<&str>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_lsof_listeners, LsofListener};
+    use super::{parse_lsof_listeners, vscode_live_server_directory, LsofListener, ProcessDetails};
 
     #[test]
     fn parses_lsof_listener_rows() {
@@ -183,5 +247,30 @@ Python  23456 tyler  10u  IPv4 234567      0t0  TCP 127.0.0.1:8000 (LISTEN)
                 },
             ]
         );
+    }
+
+    #[test]
+    fn detects_vscode_live_server_directory_from_open_paths() {
+        let root = std::env::temp_dir().join(format!(
+            "porchlight-vscode-live-server-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+
+        let process = ProcessDetails {
+            command: "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)".into(),
+            working_directory: Some("/".into()),
+            open_paths: vec![
+                "/Users/tyler/.vscode/extensions/ritwickdey.liveserver-5.7.10/node_modules/fsevents/fsevents.node".into(),
+                root.to_string_lossy().to_string(),
+            ],
+        };
+
+        assert_eq!(
+            vscode_live_server_directory(5501, &process).as_deref(),
+            Some(root.to_str().unwrap())
+        );
+
+        let _ = std::fs::remove_dir_all(root);
     }
 }

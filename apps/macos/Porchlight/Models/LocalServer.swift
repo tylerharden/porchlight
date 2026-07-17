@@ -48,6 +48,10 @@ struct LocalServer: Decodable, Identifiable, Hashable {
     }
 
     var resolvedStartCommand: String? {
+        if serverType == "Live Server" && command.contains("Code Helper") {
+            return nil
+        }
+
         if let startCommand, !startCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return startCommand
         }
