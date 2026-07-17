@@ -6,13 +6,14 @@ struct PorchlightApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            NativeMenuBarView(viewModel: viewModel)
+            MenuBarView(viewModel: viewModel)
         } label: {
             Label("Porchlight", systemImage: viewModel.hasActiveServers ? "lightbulb.fill" : "lightbulb")
                 .task {
                     await viewModel.start()
                 }
         }
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView(viewModel: viewModel)
