@@ -116,10 +116,9 @@ final class StatusBarController: NSObject {
             finder.representedObject = server.id
             submenu.addItem(finder)
 
-            let code = NSMenuItem(title: "Open in VS Code", action: #selector(openInVSCode(_:)), keyEquivalent: "")
-            code.target = self
-            code.representedObject = server.id
-            submenu.addItem(code)
+            let openInApp = NSMenuItem(title: "Open in App", action: nil, keyEquivalent: "")
+            openInApp.submenu = openInAppSubmenu(for: server)
+            submenu.addItem(openInApp)
         }
 
         submenu.addItem(.separator())
@@ -128,8 +127,8 @@ final class StatusBarController: NSObject {
         process.isEnabled = false
         submenu.addItem(process)
 
-        let command = NSMenuItem(title: server.command, action: nil, keyEquivalent: "")
-        command.isEnabled = false
+        let command = NSMenuItem(title: "Command", action: nil, keyEquivalent: "")
+        command.submenu = commandSubmenu(for: server)
         submenu.addItem(command)
 
         submenu.addItem(.separator())
@@ -145,11 +144,51 @@ final class StatusBarController: NSObject {
             killAndRemove.representedObject = server.id
             submenu.addItem(killAndRemove)
         } else {
+            let start = NSMenuItem(title: "Start", action: #selector(start(_:)), keyEquivalent: "")
+            start.target = self
+            start.representedObject = server.id
+            start.isEnabled = server.startCommand != nil
+            submenu.addItem(start)
+
             let remove = NSMenuItem(title: "Remove", action: #selector(remove(_:)), keyEquivalent: "")
             remove.target = self
             remove.representedObject = server.id
             submenu.addItem(remove)
         }
+
+        return submenu
+    }
+
+    private func openInAppSubmenu(for server: LocalServer) -> NSMenu {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+
+        let code = NSMenuItem(title: "Visual Studio Code", action: #selector(openInVSCode(_:)), keyEquivalent: "")
+        code.target = self
+        code.representedObject = server.id
+        submenu.addItem(code)
+
+        let xcode = NSMenuItem(title: "Xcode", action: #selector(openInXcode(_:)), keyEquivalent: "")
+        xcode.target = self
+        xcode.representedObject = server.id
+        xcode.isEnabled = canOpenInXcode(server)
+        submenu.addItem(xcode)
+
+        return submenu
+    }
+
+    private func commandSubmenu(for server: LocalServer) -> NSMenu {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+
+        let preview = NSMenuItem(title: shortened(server.command, limit: 72), action: nil, keyEquivalent: "")
+        preview.isEnabled = false
+        submenu.addItem(preview)
+
+        let copy = NSMenuItem(title: "Copy Command", action: #selector(copyCommand(_:)), keyEquivalent: "")
+        copy.target = self
+        copy.representedObject = server.id
+        submenu.addItem(copy)
 
         return submenu
     }
@@ -194,10 +233,30 @@ final class StatusBarController: NSObject {
 
     @objc private func openInVSCode(_ sender: NSMenuItem) {
         guard let server = server(for: sender), let workingDirectory = server.workingDirectory else { return }
+        runAppCommand("/usr/local/bin/code", argument: workingDirectory)
+    }
+
+    @objc private func openInXcode(_ sender: NSMenuItem) {
+        guard let server = server(for: sender), let workingDirectory = server.workingDirectory else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
+    }
+
+    @objc private func copyCommand(_ sender: NSMenuItem) {
+        guard let server = server(for: sender) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(server.command, forType: .string)
+    }
+
+    @objc private func start(_ sender: NSMenuItem) {
+        guard let server = server(for: sender), let startCommand = server.startCommand else { return }
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/code")
-        process.arguments = [workingDirectory]
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-lc", startCommand]
+        if let workingDirectory = server.workingDirectory {
+            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
+        }
         try? process.run()
+        Task { await refresh() }
     }
 
     @objc private func kill(_ sender: NSMenuItem) {
@@ -223,5 +282,23 @@ final class StatusBarController: NSObject {
             try? await cli.removeServer(server)
             await refresh()
         }
+    }
+
+    private func runAppCommand(_ executable: String, argument: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = [argument]
+        try? process.run()
+    }
+
+    private func canOpenInXcode(_ server: LocalServer) -> Bool {
+        guard let workingDirectory = server.workingDirectory else { return false }
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: workingDirectory)) ?? []
+        return contents.contains { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }
+    }
+
+    private func shortened(_ value: String, limit: Int) -> String {
+        guard value.count > limit else { return value }
+        return String(value.prefix(limit - 1)) + "…"
     }
 }

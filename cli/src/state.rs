@@ -25,31 +25,45 @@ impl AppState {
             return Ok(Self::default());
         }
 
-        let data = fs::read_to_string(&path).map_err(|source| StateError::Read { path, source })?;
+        let data = match fs::read_to_string(&path) {
+            Ok(data) => data,
+            Err(source) if source.kind() == io::ErrorKind::NotFound => return Ok(Self::default()),
+            Err(source) => return Err(StateError::Read { path, source }),
+        };
         serde_json::from_str(&data).map_err(StateError::Parse)
     }
 
     pub fn save(&self) -> Result<(), StateError> {
         let path = state_path();
 
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|source| StateError::CreateDirectory {
-                path: parent.to_path_buf(),
-                source,
-            })?;
-        }
+        ensure_parent_directory(&path)?;
 
         let temporary_path = path.with_extension("json.tmp");
         let data = serde_json::to_string_pretty(self).expect("state serializes");
+        ensure_parent_directory(&temporary_path)?;
         fs::write(&temporary_path, data).map_err(|source| StateError::Write {
             path: temporary_path.clone(),
             source,
         })?;
-        fs::rename(&temporary_path, &path).map_err(|source| StateError::Rename {
-            from: temporary_path,
-            to: path,
-            source,
-        })?;
+
+        match fs::rename(&temporary_path, &path) {
+            Ok(()) => {}
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {
+                ensure_parent_directory(&path)?;
+                fs::rename(&temporary_path, &path).map_err(|source| StateError::Rename {
+                    from: temporary_path,
+                    to: path,
+                    source,
+                })?;
+            }
+            Err(source) => {
+                return Err(StateError::Rename {
+                    from: temporary_path,
+                    to: path,
+                    source,
+                });
+            }
+        }
 
         Ok(())
     }
@@ -126,8 +140,10 @@ impl AppState {
 
     pub fn remove(&mut self, target: &str) -> usize {
         let before_count = self.recent_servers.len() + self.pinned_servers.len();
-        self.recent_servers.retain(|server| !server_matches_target(server, target));
-        self.pinned_servers.retain(|server| !server_matches_target(server, target));
+        self.recent_servers
+            .retain(|server| !server_matches_target(server, target));
+        self.pinned_servers
+            .retain(|server| !server_matches_target(server, target));
         before_count - self.recent_servers.len() - self.pinned_servers.len()
     }
 }
@@ -144,6 +160,17 @@ fn server_matches_target(server: &LocalServer, target: &str) -> bool {
     target.parse::<u16>().ok() == Some(server.port)
         || server.id == target
         || server_identity_key(server) == target
+}
+
+fn ensure_parent_directory(path: &std::path::Path) -> Result<(), StateError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|source| StateError::CreateDirectory {
+            path: parent.to_path_buf(),
+            source,
+        })?;
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, thiserror::Error)]
