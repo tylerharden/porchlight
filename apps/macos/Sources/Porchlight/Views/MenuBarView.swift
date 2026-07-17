@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarView: View {
     @Bindable var viewModel: ServerListViewModel
     @Environment(\.openSettings) private var openSettings
+    @State private var expandedServerID: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -67,9 +68,19 @@ struct MenuBarView: View {
                         ServerRowView(
                             server: server,
                             compact: true,
-                            isKilling: viewModel.killingServerIDs.contains(server.id)
+                            isKilling: viewModel.killingServerIDs.contains(server.id),
+                            isExpanded: expandedServerID == server.id
                         ) {
-                            Task { await viewModel.kill(server) }
+                            expandedServerID = expandedServerID == server.id ? nil : server.id
+                        }
+                        .onHover { hovering in
+                            if hovering {
+                                expandedServerID = server.id
+                            }
+                        }
+
+                        if expandedServerID == server.id {
+                            ServerDetailView(server: server, viewModel: viewModel)
                         }
 
                         if index < viewModel.servers.count - 1 {
@@ -114,13 +125,129 @@ struct MenuBarView: View {
         if viewModel.servers.isEmpty || viewModel.errorMessage != nil {
             contentHeight = 112
         } else {
-            contentHeight = min(CGFloat(viewModel.servers.count) * 39, CGFloat(maxVisibleServers) * 39)
+            let rowHeight = CGFloat(viewModel.servers.count) * 39
+            let detailHeight: CGFloat = expandedServerID == nil ? 0 : 216
+            contentHeight = min(rowHeight + detailHeight, CGFloat(maxVisibleServers) * 39 + 216)
         }
 
         return 40 + contentHeight + 63 + 14
     }
 
     private var maxVisibleServers: Int { 8 }
+}
+
+private struct ServerDetailView: View {
+    let server: LocalServer
+    @Bindable var viewModel: ServerListViewModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DetailButton(title: "Open Address", detail: server.url) {
+                open(server.url)
+            }
+
+            if let workingDirectory = server.workingDirectory {
+                DetailButton(title: "Open in Finder", detail: server.locationText) {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
+                }
+
+                DetailButton(title: "Open in VS Code", detail: "code \(server.locationText)") {
+                    openWithCommand("/usr/local/bin/code", argument: workingDirectory)
+                }
+
+                if workingDirectory.hasSuffix(".xcodeproj") || workingDirectory.hasSuffix(".xcworkspace") {
+                    DetailButton(title: "Open in Xcode", detail: server.locationText) {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
+                    }
+                }
+            }
+
+            DetailInfo(title: "Process", value: "pid \(server.pid) • \(server.processName)")
+            DetailInfo(title: "Command", value: server.command)
+
+            if server.isActive {
+                DetailButton(title: "Kill", detail: "Switch this server off") {
+                    Task { await viewModel.kill(server) }
+                }
+
+                DetailButton(title: "Kill and Remove", detail: "Stop and remove from recents") {
+                    Task { await viewModel.killAndRemove(server) }
+                }
+            } else {
+                DetailButton(title: "Remove", detail: "Remove from recents") {
+                    Task { await viewModel.remove(server) }
+                }
+            }
+        }
+        .padding(.leading, 38)
+        .padding(.trailing, 8)
+        .padding(.bottom, 6)
+    }
+
+    private func open(_ url: String) {
+        guard let url = URL(string: url) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openWithCommand(_ executable: String, argument: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = [argument]
+        try? process.run()
+    }
+}
+
+private struct DetailButton: View {
+    let title: String
+    let detail: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            DetailRow(title: title, detail: detail)
+                .background(selectionBackground)
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .onHover { isHovered = $0 }
+    }
+
+    private var selectionBackground: some View {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .fill(isHovered ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
+            .padding(.horizontal, -4)
+    }
+}
+
+private struct DetailInfo: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        DetailRow(title: title, detail: value)
+            .opacity(0.72)
+    }
+}
+
+private struct DetailRow: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.system(size: 11))
+            Spacer(minLength: 10)
+            Text(detail)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .frame(height: 24)
+        .contentShape(Rectangle())
+    }
 }
 
 private struct FooterButton: View {
