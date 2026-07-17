@@ -1,0 +1,87 @@
+[
+  {
+    "label": "Django",
+    "match_any": [
+      ["manage.py", "runserver"]
+    ]
+  },
+  {
+    "label": "Live Server",
+    "match_any": [
+      ["live-server"]
+    ]
+  },
+  {
+    "label": "Next.js",
+    "match_any": [
+      ["next", "dev"]
+    ]
+  },
+  {
+    "label": "Nuxt",
+    "match_any": [
+      ["nuxt", "dev"]
+    ]
+  },
+  {
+    "label": "Astro",
+    "match_any": [
+      ["astro", "dev"]
+    ]
+  },
+  {
+    "label": "Rails",
+    "match_any": [
+      ["rails", "server"],
+      ["rails", " s "]
+    ]
+  },
+  {
+    "label": "Uvicorn",
+    "match_any": [
+      ["uvicorn"]
+    ]
+  },
+  {
+    "label": "Gunicorn",
+    "match_any": [
+      ["gunicorn"]
+    ]
+  },
+  {
+    "label": "Vite",
+    "match_any": [
+      ["vite"]
+    ]
+  },
+  {
+    "label": "PHP",
+    "match_any": [
+      ["php -s"]
+    ]
+  },
+  {
+    "label": "Bun",
+    "match_any": [
+      ["bun"]
+    ]
+  },
+  {
+    "label": "Deno",
+    "match_any": [
+      ["deno"]
+    ]
+  },
+  {
+    "label": "Python",
+    "match_any": [
+      ["python"]
+    ]
+  },
+  {
+    "label": "Node",
+    "match_any": [
+      ["node"]
+    ]
+  }
+]
