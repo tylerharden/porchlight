@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var viewModel: ServerListViewModel
+    var onTabChange: (String) -> Void = { _ in }
     @State private var groupStore = ServerGroupStore()
     @State private var selectedTab = PorchlightTab.servers
     @State private var selectedServerID: LocalServer.ID?
@@ -29,15 +30,15 @@ struct SettingsView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text(selectedTab.rawValue)
-                    .font(.headline)
-            }
-        }
         .task {
             groupStore.load()
             await viewModel.refresh()
+        }
+        .onAppear {
+            onTabChange(selectedTab.rawValue)
+        }
+        .onChange(of: selectedTab) { _, tab in
+            onTabChange(tab.rawValue)
         }
     }
 
@@ -688,4 +689,32 @@ private struct DetailRow: View {
             }
         }
     }
+}
+
+#Preview {
+    let vm = ServerListViewModel()
+    vm.servers = [
+        LocalServer(
+            id: "1", port: 3000, pid: 1234, status: .active,
+            processName: "node", serverType: "Next.js",
+            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF"),
+            command: "next dev",
+            workingDirectory: "/Users/tyler/Developer/myapp",
+            displayDirectory: "~/Developer/myapp",
+            url: "http://localhost:3000",
+            pinned: true, lastSeenAt: nil, startCommand: "npm run dev"
+        ),
+        LocalServer(
+            id: "2", port: 8000, pid: 5678, status: .recent,
+            processName: "python", serverType: "Django",
+            group: nil,
+            command: "python manage.py runserver",
+            workingDirectory: "/Users/tyler/Developer/backend",
+            displayDirectory: "~/Developer/backend",
+            url: "http://localhost:8000",
+            pinned: false, lastSeenAt: nil, startCommand: nil
+        ),
+    ]
+    return SettingsView(viewModel: vm)
+        .frame(width: 680, height: 520)
 }
