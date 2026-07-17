@@ -6,26 +6,30 @@ struct MenuBarView: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 0) {
             header
+
+            Divider()
 
             serverList
 
+            Divider()
+
             footer
         }
-        .padding(10)
+        .padding(.vertical, 6)
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 9) {
             ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.16))
+                Circle()
+                    .fill(Color.accentColor.opacity(0.14))
                 Image(systemName: "lightbulb.fill")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
             }
-            .frame(width: 30, height: 30)
+            .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Porchlight")
@@ -53,8 +57,8 @@ struct MenuBarView: View {
                 .help("Refresh")
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     private var serverList: some View {
@@ -93,17 +97,18 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 0) {
             FooterButton(title: "Settings...", systemImage: "gearshape") {
                 openSettings()
             }
+
+            Divider()
+                .padding(.leading, 36)
 
             FooterButton(title: "Quit Porchlight", systemImage: "power") {
                 NSApplication.shared.terminate(nil)
             }
         }
-        .padding(5)
-        .porchlightGlass(cornerRadius: 14)
     }
 
     private var summaryText: String {
@@ -114,22 +119,6 @@ struct MenuBarView: View {
             return "1 server active"
         default:
             return "\(viewModel.activeServerCount) servers active"
-        }
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func porchlightGlass(cornerRadius: CGFloat) -> some View {
-        if #available(macOS 26.0, *) {
-            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
-        } else {
-            self
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.quaternary.opacity(0.7), lineWidth: 0.5)
-                }
         }
     }
 }
@@ -150,9 +139,9 @@ private struct FooterButton: View {
                     .font(.system(size: 13))
                 Spacer()
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
