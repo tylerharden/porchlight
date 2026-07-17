@@ -31,8 +31,18 @@ struct PorchlightCLI {
         _ = try await run(arguments: ["remove", server.id])
     }
 
+    func pinServer(_ server: LocalServer) async throws {
+        _ = try await run(arguments: ["pin", server.id])
+    }
+
+    func unpinServer(_ server: LocalServer) async throws {
+        _ = try await run(arguments: ["unpin", server.id])
+    }
+
     private func run(arguments: [String]) async throws -> Data {
-        try await Task.detached(priority: .userInitiated) {
+        let executablePath = executablePath
+
+        return try await Task.detached(priority: .userInitiated) {
             guard FileManager.default.isExecutableFile(atPath: executablePath) else {
                 throw PorchlightCLIError.missingExecutable(executablePath)
             }

@@ -4,12 +4,14 @@ import AppKit
 final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let cli = PorchlightCLI()
-    private let settingsController = SettingsWindowController()
+    private let mainWindowController: SettingsWindowController
     private var servers: [LocalServer] = []
     private var refreshTask: Task<Void, Never>?
+    private var activeRefreshTask: Task<Void, Never>?
 
-    override init() {
+    init(mainWindowController: SettingsWindowController) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.mainWindowController = mainWindowController
         super.init()
 
         statusItem.button?.image = NSImage(systemSymbolName: "lightbulb", accessibilityDescription: "Porchlight")
@@ -29,8 +31,17 @@ final class StatusBarController: NSObject {
         await refresh()
 
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(5))
-            await refresh()
+            try? await Task.sleep(for: .seconds(2))
+            scheduleRefresh()
+        }
+    }
+
+    private func scheduleRefresh() {
+        guard activeRefreshTask == nil else { return }
+
+        activeRefreshTask = Task { [weak self] in
+            await self?.refresh()
+            self?.activeRefreshTask = nil
         }
     }
 
@@ -50,6 +61,7 @@ final class StatusBarController: NSObject {
     private func rebuildMenu(error: String? = nil) {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        menu.delegate = self
 
         if let error {
             let title = NSMenuItem(title: "Porchlight CLI failed", action: nil, keyEquivalent: "")
@@ -64,22 +76,18 @@ final class StatusBarController: NSObject {
             empty.isEnabled = false
             menu.addItem(empty)
         } else {
-            for server in servers {
-                menu.addItem(menuItem(for: server))
-            }
+            addServerItems(to: menu)
         }
 
         menu.addItem(.separator())
 
-        let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
-        refresh.target = self
-        menu.addItem(refresh)
+        menu.addItem(refreshMenuItem())
 
         menu.addItem(.separator())
 
-        let settings = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
+        let open = NSMenuItem(title: "Open Porchlight", action: #selector(openPorchlight), keyEquivalent: "")
+        open.target = self
+        menu.addItem(open)
 
         let quit = NSMenuItem(title: "Quit Porchlight", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
@@ -88,11 +96,66 @@ final class StatusBarController: NSObject {
         statusItem.menu = menu
     }
 
+    private func addServerItems(to menu: NSMenu) {
+        var groups: [(group: ServerGroupMatch, servers: [LocalServer])] = []
+        var ungroupedServers: [LocalServer] = []
+
+        for server in servers {
+            guard let group = server.group else {
+                ungroupedServers.append(server)
+                continue
+            }
+
+            if let index = groups.firstIndex(where: { $0.group.id == group.id }) {
+                groups[index].servers.append(server)
+            } else {
+                groups.append((group, [server]))
+            }
+        }
+
+        var addedSection = false
+
+        for group in groups {
+            if addedSection {
+                menu.addItem(.separator())
+            }
+            menu.addItem(groupHeaderItem(for: group.group))
+            group.servers.forEach { menu.addItem(menuItem(for: $0)) }
+            addedSection = true
+        }
+
+        if !ungroupedServers.isEmpty {
+            if addedSection {
+                menu.addItem(.separator())
+            }
+            ungroupedServers.forEach { menu.addItem(menuItem(for: $0)) }
+        }
+    }
+
+    private func groupHeaderItem(for group: ServerGroupMatch) -> NSMenuItem {
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        item.attributedTitle = NSAttributedString(
+            string: group.name,
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 11),
+                .foregroundColor: NSColor(hex: group.color) ?? NSColor.secondaryLabelColor
+            ]
+        )
+        return item
+    }
+
     private func menuItem(for server: LocalServer) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.attributedTitle = serverMenuTitle(server)
         item.image = statusImage(isActive: server.isActive)
         item.submenu = submenu(for: server)
+        return item
+    }
+
+    private func refreshMenuItem() -> NSMenuItem {
+        let item = NSMenuItem()
+        item.view = RefreshMenuItemView(target: self, action: #selector(refreshNow))
         return item
     }
 
@@ -107,7 +170,6 @@ final class StatusBarController: NSObject {
         submenu.addItem(.separator())
 
         let openAddress = NSMenuItem(title: displayURL(server.url), action: #selector(openAddress(_:)), keyEquivalent: "")
-        openAddress.attributedTitle = linkTitle(displayURL(server.url))
         openAddress.target = self
         openAddress.representedObject = server.id
         submenu.addItem(openAddress)
@@ -136,6 +198,9 @@ final class StatusBarController: NSObject {
         submenu.addItem(.separator())
 
         if server.isActive {
+            let pin = pinMenuItem(for: server)
+            submenu.addItem(pin)
+
             let kill = NSMenuItem(title: "Kill", action: #selector(kill(_:)), keyEquivalent: "")
             kill.target = self
             kill.representedObject = server.id
@@ -146,6 +211,9 @@ final class StatusBarController: NSObject {
             killAndRemove.representedObject = server.id
             submenu.addItem(killAndRemove)
         } else {
+            let pin = pinMenuItem(for: server)
+            submenu.addItem(pin)
+
             let start = NSMenuItem(title: "Start", action: #selector(start(_:)), keyEquivalent: "")
             start.target = self
             start.representedObject = server.id
@@ -159,6 +227,13 @@ final class StatusBarController: NSObject {
         }
 
         return submenu
+    }
+
+    private func pinMenuItem(for server: LocalServer) -> NSMenuItem {
+        let item = NSMenuItem(title: server.pinned ? "Unpin" : "Pin", action: #selector(togglePin(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = server.id
+        return item
     }
 
     private func openInAppSubmenu(for server: LocalServer) -> NSMenu {
@@ -214,7 +289,7 @@ final class StatusBarController: NSObject {
         let title = NSMutableAttributedString(
             string: String(server.port),
             attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
+                .font: NSFont.menuFont(ofSize: 0),
                 .foregroundColor: NSColor.labelColor
             ]
         )
@@ -223,7 +298,7 @@ final class StatusBarController: NSObject {
         title.append(NSAttributedString(
             string: server.serverType,
             attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: .regular),
+                .font: NSFont.menuFont(ofSize: 0),
                 .foregroundColor: NSColor.secondaryLabelColor
             ]
         ))
@@ -231,22 +306,12 @@ final class StatusBarController: NSObject {
         return title
     }
 
-    private func linkTitle(_ value: String) -> NSAttributedString {
-        NSAttributedString(
-            string: value,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
-                .foregroundColor: NSColor.linkColor
-            ]
-        )
-    }
-
     @objc private func refreshNow() {
-        Task { await refresh() }
+        scheduleRefresh()
     }
 
-    @objc private func openSettings() {
-        settingsController.show()
+    @objc private func openPorchlight() {
+        mainWindowController.show()
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -317,6 +382,18 @@ final class StatusBarController: NSObject {
         }
     }
 
+    @objc private func togglePin(_ sender: NSMenuItem) {
+        guard let server = server(for: sender) else { return }
+        Task {
+            if server.pinned {
+                try? await cli.unpinServer(server)
+            } else {
+                try? await cli.pinServer(server)
+            }
+            await refresh()
+        }
+    }
+
     private func runAppCommand(_ executable: String, argument: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -343,5 +420,90 @@ final class StatusBarController: NSObject {
         }
 
         return host
+    }
+}
+
+private final class RefreshMenuItemView: NSView {
+    private weak var target: AnyObject?
+    private let action: Selector
+    private var isHovered = false {
+        didSet { needsDisplay = true }
+    }
+
+    init(target: AnyObject, action: Selector) {
+        self.target = target
+        self.action = action
+        super.init(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self
+        ))
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        if isHovered {
+            NSColor.selectedContentBackgroundColor.setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 1), xRadius: 5, yRadius: 5).fill()
+        }
+
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.menuFont(ofSize: 0),
+            .foregroundColor: isHovered ? NSColor.selectedMenuItemTextColor : NSColor.labelColor
+        ]
+        let shortcutAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.menuFont(ofSize: 0),
+            .foregroundColor: isHovered ? NSColor.selectedMenuItemTextColor : NSColor.secondaryLabelColor
+        ]
+
+        let title = NSAttributedString(string: "Refresh", attributes: titleAttributes)
+        title.draw(at: NSPoint(x: 14, y: 4))
+
+        let shortcut = NSAttributedString(string: "⌘R", attributes: shortcutAttributes)
+        shortcut.draw(at: NSPoint(x: bounds.width - shortcut.size().width - 14, y: 4))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovered = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        _ = target?.perform(action, with: nil)
+    }
+}
+
+extension StatusBarController: NSMenuDelegate {
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        Task { @MainActor in
+            self.scheduleRefresh()
+        }
+    }
+}
+
+private extension NSColor {
+    convenience init?(hex: String) {
+        let value = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard value.count == 6 else { return nil }
+
+        let scanner = Scanner(string: value)
+        var rgb: UInt64 = 0
+        guard scanner.scanHexInt64(&rgb) else { return nil }
+
+        self.init(
+            srgbRed: CGFloat((rgb & 0xFF0000) >> 16) / 255,
+            green: CGFloat((rgb & 0x00FF00) >> 8) / 255,
+            blue: CGFloat(rgb & 0x0000FF) / 255,
+            alpha: 1
+        )
     }
 }

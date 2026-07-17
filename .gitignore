@@ -3,4 +3,6 @@ target/
 cli/target/
 apps/macos/.build/
 apps/macos/.swiftpm/
+xcuserdata/
+*.xcuserstate
 .netrc
