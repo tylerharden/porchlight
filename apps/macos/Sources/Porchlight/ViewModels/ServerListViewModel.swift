@@ -59,4 +59,19 @@ final class ServerListViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    func remove(_ server: LocalServer) async {
+        do {
+            try await cli.removeServer(server)
+            errorMessage = nil
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func killAndRemove(_ server: LocalServer) async {
+        await kill(server)
+        await remove(server)
+    }
 }

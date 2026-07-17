@@ -123,6 +123,13 @@ impl AppState {
 
         output
     }
+
+    pub fn remove(&mut self, target: &str) -> usize {
+        let before_count = self.recent_servers.len() + self.pinned_servers.len();
+        self.recent_servers.retain(|server| !server_matches_target(server, target));
+        self.pinned_servers.retain(|server| !server_matches_target(server, target));
+        before_count - self.recent_servers.len() - self.pinned_servers.len()
+    }
 }
 
 fn server_identity_key(server: &LocalServer) -> String {
@@ -131,6 +138,12 @@ fn server_identity_key(server: &LocalServer) -> String {
         server.port,
         server.working_directory.as_deref().unwrap_or("unknown")
     )
+}
+
+fn server_matches_target(server: &LocalServer, target: &str) -> bool {
+    target.parse::<u16>().ok() == Some(server.port)
+        || server.id == target
+        || server_identity_key(server) == target
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -256,6 +269,23 @@ mod tests {
         state.merge_servers(active_servers, &Config::default());
 
         assert_eq!(state.recent_servers.len(), MAX_RECENT_SERVERS);
+    }
+
+    #[test]
+    fn removes_servers_by_identity() {
+        let mut state = AppState {
+            recent_servers: vec![
+                fresh_recent("one", 8000, "/tmp/one"),
+                fresh_recent("two", 9000, "/tmp/two"),
+            ],
+            pinned_servers: vec![],
+        };
+
+        let removed = state.remove("8000:/tmp/one");
+
+        assert_eq!(removed, 1);
+        assert_eq!(state.recent_servers.len(), 1);
+        assert_eq!(state.recent_servers[0].id, "two");
     }
 
     #[test]

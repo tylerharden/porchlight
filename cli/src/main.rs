@@ -33,6 +33,11 @@ enum Commands {
         /// Port number or server id from `porchlight list --json`.
         target: String,
     },
+    /// Remove a server from recents and pins.
+    Remove {
+        /// Port number or server id from `porchlight list --json`.
+        target: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -94,6 +99,16 @@ fn run() -> Result<(), PorchlightError> {
                 "Killed {} process{}.",
                 killed,
                 if killed == 1 { "" } else { "es" }
+            );
+        }
+        Commands::Remove { target } => {
+            let mut state = state::AppState::load()?;
+            let removed = state.remove(&target);
+            state.save()?;
+            println!(
+                "Removed {} server{}.",
+                removed,
+                if removed == 1 { "" } else { "s" }
             );
         }
     }

@@ -37,8 +37,8 @@ struct ServerRowView: View {
 
             actions
         }
+        .frame(height: compact ? 38 : 44)
         .padding(.horizontal, 4)
-        .padding(.vertical, compact ? 7 : 9)
         .contentShape(Rectangle())
         .opacity(server.isActive ? 1 : 0.68)
     }
@@ -74,20 +74,22 @@ private struct ActionChip: View {
         Button {
             action?()
         } label: {
-            Group {
+            ZStack {
                 if isLoading {
                     ProgressView()
                         .controlSize(.mini)
-                } else {
-                    Label(title, systemImage: systemImage)
-                        .labelStyle(.iconOnly)
                 }
+
+                Label(title, systemImage: systemImage)
+                    .labelStyle(.iconOnly)
+                    .opacity(isLoading ? 0 : 1)
             }
             .font(.system(size: 10, weight: .semibold))
             .frame(width: 22, height: 20)
         }
         .buttonStyle(.plain)
         .disabled(action == nil || isLoading)
+        .focusable(false)
         .help(title)
     }
 }
