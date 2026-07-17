@@ -38,6 +38,16 @@ enum Commands {
         /// Port number or server id from `porchlight list --json`.
         target: String,
     },
+    /// Pin a server so it remains visible when stopped.
+    Pin {
+        /// Port number or server id from `porchlight list --json`.
+        target: String,
+    },
+    /// Unpin a server.
+    Unpin {
+        /// Port number or server id from `porchlight list --json`.
+        target: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -109,6 +119,32 @@ fn run() -> Result<(), PorchlightError> {
                 "Removed {} server{}.",
                 removed,
                 if removed == 1 { "" } else { "s" }
+            );
+        }
+        Commands::Pin { target } => {
+            let mut state = state::AppState::load()?;
+            let changed = state.set_pinned(&target, true);
+            state.save()?;
+            println!(
+                "{}",
+                if changed {
+                    "Pinned."
+                } else {
+                    "No matching server to pin."
+                }
+            );
+        }
+        Commands::Unpin { target } => {
+            let mut state = state::AppState::load()?;
+            let changed = state.set_pinned(&target, false);
+            state.save()?;
+            println!(
+                "{}",
+                if changed {
+                    "Unpinned."
+                } else {
+                    "No matching server to unpin."
+                }
             );
         }
     }

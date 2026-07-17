@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::model::{LocalServer, ServerStatus};
+use crate::model::{infer_server_group, LocalServer, ServerStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -38,7 +38,7 @@ impl AppState {
 
         ensure_parent_directory(&path)?;
 
-        let temporary_path = path.with_extension("json.tmp");
+        let temporary_path = temporary_state_path(&path);
         let data = serde_json::to_string_pretty(self).expect("state serializes");
         ensure_parent_directory(&temporary_path)?;
         fs::write(&temporary_path, data).map_err(|source| StateError::Write {
@@ -133,6 +133,10 @@ impl AppState {
         });
         output.dedup_by(|left, right| server_identity_key(left) == server_identity_key(right));
 
+        for server in &mut output {
+            server.group = infer_server_group(&server.command, server.working_directory.as_deref());
+        }
+
         self.recent_servers = output.iter().cloned().take(MAX_RECENT_SERVERS).collect();
 
         output
@@ -145,6 +149,41 @@ impl AppState {
         self.pinned_servers
             .retain(|server| !server_matches_target(server, target));
         before_count - self.recent_servers.len() - self.pinned_servers.len()
+    }
+
+    pub fn set_pinned(&mut self, target: &str, pinned: bool) -> bool {
+        let mut changed = false;
+
+        for server in &mut self.recent_servers {
+            if server_matches_target(server, target) {
+                server.pinned = pinned;
+                changed = true;
+            }
+        }
+
+        if pinned {
+            let existing_keys = self
+                .pinned_servers
+                .iter()
+                .map(server_identity_key)
+                .collect::<HashSet<_>>();
+
+            for server in &self.recent_servers {
+                if server_matches_target(server, target)
+                    && !existing_keys.contains(&server_identity_key(server))
+                {
+                    self.pinned_servers.push(server.clone());
+                    changed = true;
+                }
+            }
+        } else {
+            let before_count = self.pinned_servers.len();
+            self.pinned_servers
+                .retain(|server| !server_matches_target(server, target));
+            changed = changed || before_count != self.pinned_servers.len();
+        }
+
+        changed
     }
 }
 
@@ -171,6 +210,12 @@ fn ensure_parent_directory(path: &std::path::Path) -> Result<(), StateError> {
     }
 
     Ok(())
+}
+
+fn temporary_state_path(path: &std::path::Path) -> PathBuf {
+    let nonce = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let process_id = std::process::id();
+    path.with_extension(format!("json.{process_id}.{nonce}.tmp"))
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -316,6 +361,22 @@ mod tests {
     }
 
     #[test]
+    fn pins_and_unpins_servers_by_identity() {
+        let mut state = AppState {
+            recent_servers: vec![fresh_recent("one", 8000, "/tmp/one")],
+            pinned_servers: vec![],
+        };
+
+        assert!(state.set_pinned("8000:/tmp/one", true));
+        assert!(state.recent_servers[0].pinned);
+        assert_eq!(state.pinned_servers.len(), 1);
+
+        assert!(state.set_pinned("8000:/tmp/one", false));
+        assert!(!state.recent_servers[0].pinned);
+        assert!(state.pinned_servers.is_empty());
+    }
+
+    #[test]
     fn collapses_active_servers_for_the_same_port_and_directory() {
         let mut state = AppState::default();
 
@@ -345,6 +406,7 @@ mod tests {
             status,
             process_name: "python".into(),
             server_type: "Django".into(),
+            group: None,
             command: "python manage.py runserver".into(),
             working_directory: Some(working_directory.into()),
             display_directory: Some(working_directory.into()),

@@ -1,6 +1,6 @@
 use super::{display_directory, ScannerError};
 use crate::config::Config;
-use crate::model::{infer_server_type, LocalServer, ServerStatus};
+use crate::model::{infer_server_group, infer_server_type, LocalServer, ServerStatus};
 use std::collections::HashSet;
 use std::process::Command;
 
@@ -43,6 +43,7 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
         }
 
         let server_type = infer_server_type(&listener.process_name, &process.command);
+        let group = infer_server_group(&process.command, working_directory.as_deref());
         let display_directory = working_directory.as_deref().map(display_directory);
 
         servers.push(LocalServer {
@@ -52,6 +53,7 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             status: ServerStatus::Active,
             process_name: listener.process_name,
             server_type,
+            group,
             command: process.command,
             working_directory,
             display_directory,
