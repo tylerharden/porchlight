@@ -184,10 +184,6 @@ final class StatusBarController: NSObject {
         return image
     }
 
-    private func serverIconImage(_ server: LocalServer) -> NSImage? {
-        groupIconImage(server.icon ?? server.group?.icon)
-    }
-
     private func menuItem(for server: LocalServer) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
@@ -197,7 +193,7 @@ final class StatusBarController: NSObject {
         }
 
         item.attributedTitle = serverMenuTitle(server)
-        item.image = serverIconImage(server) ?? statusImage(isActive: server.isActive)
+        item.image = statusImage(isActive: server.isActive)
         item.submenu = submenu(for: server)
         return item
     }
