@@ -5,6 +5,7 @@ import ServiceManagement
 @Observable
 final class AppSettings {
     static let didChangeNotification = Notification.Name("PorchlightAppSettingsDidChange")
+    private let defaults: UserDefaults
     private var isResetting = false
 
     var autoRefresh: Bool {
@@ -48,6 +49,7 @@ final class AppSettings {
     var errorMessage: String?
 
     init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         autoRefresh = defaults.object(forKey: "autoRefresh") as? Bool ?? true
         refreshInterval = defaults.object(forKey: "refreshInterval") as? Double ?? 2
         hideDockIcon = defaults.object(forKey: "hideDockIcon") as? Bool ?? true
@@ -59,13 +61,13 @@ final class AppSettings {
 
     private func persistAndNotify(_ key: String, _ value: Bool) {
         guard !isResetting else { return }
-        UserDefaults.standard.set(value, forKey: key)
+        defaults.set(value, forKey: key)
         notifyChanged()
     }
 
     private func persistAndNotify(_ key: String, _ value: Double) {
         guard !isResetting else { return }
-        UserDefaults.standard.set(value, forKey: key)
+        defaults.set(value, forKey: key)
         notifyChanged()
     }
 
@@ -128,7 +130,7 @@ final class AppSettings {
                 "hideMenuIconWhenEmpty",
                 "showAutomaticGroups",
                 "showAppServices",
-            ].forEach { UserDefaults.standard.removeObject(forKey: $0) }
+            ].forEach { defaults.removeObject(forKey: $0) }
 
             errorMessage = nil
             notifyChanged()

@@ -49,6 +49,77 @@ final class LocalServerTests: XCTestCase {
     }
 
     @MainActor
+    func testLocationTextFallsBackToWorkingDirectoryThenUnknown() {
+        let serverWithWorkingDirectory = server(id: "a", port: 3000, group: nil, workingDirectory: "/tmp/app")
+        let serverWithoutDirectory = server(id: "b", port: 8000, group: nil)
+
+        XCTAssertEqual(serverWithWorkingDirectory.locationText, "/tmp/app")
+        XCTAssertEqual(serverWithoutDirectory.locationText, "Unknown location")
+    }
+
+    @MainActor
+    func testResolvedStartCommandUsesExplicitCommandFirst() {
+        let server = server(
+            id: "localhost:3000",
+            port: 3000,
+            group: nil,
+            command: "npm run dev",
+            startCommand: "pnpm dev"
+        )
+
+        XCTAssertEqual(server.resolvedStartCommand, "pnpm dev")
+    }
+
+    @MainActor
+    func testResolvedStartCommandFallsBackToTrimmedCommand() {
+        let server = server(id: "localhost:3000", port: 3000, group: nil, command: "  npm run dev  ")
+
+        XCTAssertEqual(server.resolvedStartCommand, "npm run dev")
+    }
+
+    @MainActor
+    func testResolvedStartCommandIgnoresBlankAndLiveServerCodeHelperCommands() {
+        let blankCommand = server(id: "blank", port: 3000, group: nil, command: "   ")
+        let liveServerCodeHelper = server(
+            id: "live-server",
+            port: 5500,
+            group: nil,
+            serverType: "Live Server",
+            command: "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper"
+        )
+
+        XCTAssertNil(blankCommand.resolvedStartCommand)
+        XCTAssertNil(liveServerCodeHelper.resolvedStartCommand)
+    }
+
+    @MainActor
+    func testLastSeenDateDecodesFractionalSeconds() {
+        let server = server(
+            id: "localhost:3000",
+            port: 3000,
+            group: nil,
+            lastSeenAt: "2026-07-20T10:11:12.345Z"
+        )
+
+        XCTAssertNotNil(server.lastSeenDate)
+    }
+
+    @MainActor
+    func testCanOpenInXcodeDetectsProjectOrWorkspace() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let project = directory.appendingPathComponent("Porchlight.xcodeproj", isDirectory: true)
+        try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+
+        let server = server(id: "localhost:3000", port: 3000, group: nil, workingDirectory: directory.path)
+
+        XCTAssertTrue(server.canOpenInXcode)
+    }
+
+    @MainActor
     func testGroupedSectionsKeepsGroupsTogetherAndUngroupedLast() {
         let group = ServerGroupMatch(
             id: "frontend",
@@ -76,23 +147,32 @@ final class LocalServerTests: XCTestCase {
     }
 
     @MainActor
-    private func server(id: String, port: Int, group: ServerGroupMatch?) -> LocalServer {
+    private func server(
+        id: String,
+        port: Int,
+        group: ServerGroupMatch?,
+        serverType: String = "Node",
+        command: String = "npm run dev",
+        workingDirectory: String? = nil,
+        startCommand: String? = nil,
+        lastSeenAt: String? = nil
+    ) -> LocalServer {
         LocalServer(
             id: id,
             port: port,
             pid: port,
             status: .active,
             processName: "node",
-            serverType: "Node",
+            serverType: serverType,
             icon: nil,
             group: group,
-            command: "npm run dev",
-            workingDirectory: nil,
+            command: command,
+            workingDirectory: workingDirectory,
             displayDirectory: nil,
             url: "http://localhost:\(port)",
             pinned: false,
-            lastSeenAt: nil,
-            startCommand: nil
+            lastSeenAt: lastSeenAt,
+            startCommand: startCommand
         )
     }
 }
