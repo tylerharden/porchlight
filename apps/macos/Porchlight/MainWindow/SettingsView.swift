@@ -279,16 +279,13 @@ struct SettingsView: View {
                             selectFallbackGroup()
                         }
                     } header: {
-                        HStack {
-                            Text("Groups")
-                            Spacer()
-                            Button {
-                                selectedGroupID = groupStore.addGroup()
-                            } label: {
-                                Image(systemName: "plus")
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        ServerListSectionHeader(
+                            title: "Groups",
+                            isRefreshing: false,
+                            refresh: nil,
+                            trailingAction: { selectedGroupID = groupStore.addGroup() },
+                            trailingActionIcon: "plus"
+                        )
                     }
 
                     if !hiddenGroupSummaries.isEmpty {
@@ -531,7 +528,9 @@ private struct ServerListSectionHeader: View {
     let title: String
     let isRefreshing: Bool
     var isExpanded: Binding<Bool>?
-    let refresh: () -> Void
+    let refresh: (() -> Void)?
+    var trailingAction: (() -> Void)?
+    var trailingActionIcon: String = "plus"
 
     var body: some View {
         HStack(spacing: 6) {
@@ -553,11 +552,18 @@ private struct ServerListSectionHeader: View {
 
             Spacer()
 
-            Button(action: refresh) {
-                RefreshIcon(isRefreshing: isRefreshing)
+            if let trailingAction {
+                Button(action: trailingAction) {
+                    Image(systemName: trailingActionIcon)
+                }
+                .buttonStyle(.plain)
+            } else if let refresh {
+                Button(action: refresh) {
+                    RefreshIcon(isRefreshing: isRefreshing)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRefreshing)
             }
-            .buttonStyle(.plain)
-            .disabled(isRefreshing)
         }
     }
 }
