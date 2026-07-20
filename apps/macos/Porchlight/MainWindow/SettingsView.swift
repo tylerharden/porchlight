@@ -89,6 +89,7 @@ struct SettingsView: View {
                 List(selection: $selectedServerID) {
                     Section {
                         EmptyView()
+                            .frame(height: 0)
                     } header: {
                         ServerListSectionHeader(
                             title: viewModel.hasActiveServers ? "\(viewModel.activeServerCount) Active" : "Servers",
@@ -549,6 +550,8 @@ private struct ServerListSectionHeader: View {
             }
 
             Text(title)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
 
             Spacer()
 
