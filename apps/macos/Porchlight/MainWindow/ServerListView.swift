@@ -60,7 +60,7 @@ struct ServerListView: View {
                             }
                         } header: {
                             ServerListSectionHeader(
-                                title: "Show Hidden",
+                                title: Strings.ServerList.showHidden,
                                 isRefreshing: viewModel.isRefreshing,
                                 isExpanded: $isShowingHiddenServers,
                                 refresh: nil
@@ -72,13 +72,13 @@ struct ServerListView: View {
                 .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
                 .overlay {
                     if viewModel.isLoadingInitialServers {
-                        CompactLoadingState(title: "Loading Servers")
+                        CompactLoadingState(title: Strings.ServerList.loadingServers)
                             .background(Color(nsColor: .windowBackgroundColor))
                     } else if viewModel.servers.isEmpty {
                         CompactEmptyState(
-                            title: "No Servers",
+                            title: Strings.ServerList.noServers,
                             systemImage: "lightbulb",
-                            description: "Start a local development server and it will appear here."
+                            description: Strings.ServerList.noServersDescription
                         )
                         .background(Color(nsColor: .windowBackgroundColor))
                     }
@@ -86,14 +86,14 @@ struct ServerListView: View {
 
                 Group {
                     if viewModel.isLoadingInitialServers {
-                        CompactLoadingState(title: "Loading Details")
+                        CompactLoadingState(title: Strings.ServerList.loadingDetails)
                     } else if let selectedServer {
                         ServerDetailView(server: selectedServer, viewModel: viewModel, showGroupIcons: showGroupIcons)
                     } else {
                         CompactEmptyState(
-                            title: "Select a Server",
+                            title: Strings.ServerList.selectServer,
                             systemImage: "lightbulb",
-                            description: "Choose a port to see details."
+                            description: Strings.ServerList.selectServerDescription
                         )
                     }
                 }
@@ -129,15 +129,15 @@ struct ServerListView: View {
             .tag(server.id)
             .swipeActions(edge: .leading, allowsFullSwipe: true) {
                 if server.hidden {
-                    Button("Unhide") {
+                    Button(Strings.ServerList.unhide) {
                         Task { await viewModel.unhide(server) }
                     }
                 } else if server.isActive {
-                    Button("Turn Off", role: .destructive) {
+                    Button(Strings.ServerList.turnOff, role: .destructive) {
                         Task { await viewModel.kill(server) }
                     }
                 } else {
-                    Button("Turn On") {
+                    Button(Strings.ServerList.turnOn) {
                         Task { await viewModel.start(server) }
                     }
                     .disabled(server.resolvedStartCommand == nil)
@@ -145,18 +145,18 @@ struct ServerListView: View {
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 if server.hidden {
-                    Button("Remove", role: .destructive) {
+                    Button(Strings.ServerDetail.remove, role: .destructive) {
                         Task { await viewModel.remove(server) }
                     }
                 } else if server.pinned {
-                    Button("Unpin") {
+                    Button(Strings.ServerDetail.unpin) {
                         Task { await viewModel.togglePin(server) }
                     }
                 } else {
-                    Button("Hide") {
+                    Button(Strings.ServerDetail.hide) {
                         Task { await viewModel.hide(server) }
                     }
-                    Button("Remove", role: .destructive) {
+                    Button(Strings.ServerDetail.remove, role: .destructive) {
                         Task { await viewModel.remove(server) }
                     }
                 }

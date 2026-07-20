@@ -55,10 +55,10 @@ struct StatusMenuBuilder {
         menu.removeAllItems()
 
         if let error {
-            addDisabledItem("Porchlight CLI failed", to: menu)
+            addDisabledItem(Strings.StatusMenu.cliFailed, to: menu)
             addDisabledItem(error, to: menu)
         } else if servers.isEmpty {
-            addDisabledItem("No local servers running", to: menu)
+            addDisabledItem(Strings.StatusMenu.noServersRunning, to: menu)
         } else {
             addServerItems(
                 to: menu,
@@ -75,8 +75,8 @@ struct StatusMenuBuilder {
 
         menu.addItem(.separator())
 
-        menu.addItem(menuItem(title: "Open Porchlight", action: actions.openPorchlight))
-        menu.addItem(menuItem(title: "Quit Porchlight", action: actions.quit, keyEquivalent: "q"))
+        menu.addItem(menuItem(title: Strings.StatusMenu.openPorchlight, action: actions.openPorchlight))
+        menu.addItem(menuItem(title: Strings.StatusMenu.quitPorchlight, action: actions.quit, keyEquivalent: "q"))
     }
 
     private func addServerItems(
@@ -142,11 +142,11 @@ struct StatusMenuBuilder {
     }
 
     private func refreshMenuItem() -> NSMenuItem {
-        menuItem(title: "Refresh", action: actions.refresh, keyEquivalent: "r")
+        menuItem(title: Strings.StatusMenu.refresh, action: actions.refresh, keyEquivalent: "r")
     }
 
     private func killAllMenuItem(isEnabled: Bool) -> NSMenuItem {
-        let item = menuItem(title: "Kill All", action: actions.killAll)
+        let item = menuItem(title: Strings.StatusMenu.killAll, action: actions.killAll)
         item.isEnabled = isEnabled
         return item
     }
@@ -167,9 +167,9 @@ struct StatusMenuBuilder {
         submenu.addItem(openAddress)
 
         if server.workingDirectory != nil {
-            submenu.addItem(menuItem(title: "Open in Finder", action: actions.openInFinder, representedObject: server.id))
+            submenu.addItem(menuItem(title: Strings.StatusMenu.openInFinder, action: actions.openInFinder, representedObject: server.id))
 
-            let openInApp = NSMenuItem(title: "Open in App", action: nil, keyEquivalent: "")
+            let openInApp = NSMenuItem(title: Strings.ServerDetail.openInApp, action: nil, keyEquivalent: "")
             openInApp.submenu = openInAppSubmenu(for: server)
             submenu.addItem(openInApp)
         }
@@ -177,7 +177,7 @@ struct StatusMenuBuilder {
         submenu.addItem(.separator())
         addDisabledItem("pid \(server.pid) • \(server.processName)", to: submenu)
 
-        let command = NSMenuItem(title: "Command", action: nil, keyEquivalent: "")
+        let command = NSMenuItem(title: Strings.StatusMenu.command, action: nil, keyEquivalent: "")
         command.submenu = commandSubmenu(for: server)
         submenu.addItem(command)
 
@@ -186,10 +186,10 @@ struct StatusMenuBuilder {
         submenu.addItem(pinMenuItem(for: server))
         if server.isActive {
             submenu.addItem(killMenuItem(for: server, killingServerIDs: killingServerIDs))
-            submenu.addItem(menuItem(title: "Kill and Remove", action: actions.killAndRemove, representedObject: server.id))
+            submenu.addItem(menuItem(title: Strings.StatusMenu.killAndRemove, action: actions.killAndRemove, representedObject: server.id))
         } else {
             submenu.addItem(startMenuItem(for: server, startingServerIDs: startingServerIDs))
-            submenu.addItem(menuItem(title: "Remove", action: actions.remove, representedObject: server.id))
+            submenu.addItem(menuItem(title: Strings.ServerDetail.remove, action: actions.remove, representedObject: server.id))
         }
         submenu.addItem(hideMenuItem(for: server))
 
@@ -197,21 +197,21 @@ struct StatusMenuBuilder {
     }
 
     private func pinMenuItem(for server: LocalServer) -> NSMenuItem {
-        menuItem(title: server.pinned ? "Unpin" : "Pin", action: actions.togglePin, representedObject: server.id)
+        menuItem(title: server.pinned ? Strings.ServerDetail.unpin : Strings.ServerDetail.pin, action: actions.togglePin, representedObject: server.id)
     }
 
     private func hideMenuItem(for server: LocalServer) -> NSMenuItem {
-        menuItem(title: "Hide", action: actions.hide, representedObject: server.id)
+        menuItem(title: Strings.ServerDetail.hide, action: actions.hide, representedObject: server.id)
     }
 
     private func startMenuItem(for server: LocalServer, startingServerIDs: Set<String>) -> NSMenuItem {
-        let item = menuItem(title: "Start", action: actions.startServer, representedObject: server.id)
+        let item = menuItem(title: Strings.StatusMenu.start, action: actions.startServer, representedObject: server.id)
         item.isEnabled = server.resolvedStartCommand != nil && !startingServerIDs.contains(server.id)
         return item
     }
 
     private func killMenuItem(for server: LocalServer, killingServerIDs: Set<String>) -> NSMenuItem {
-        let item = menuItem(title: "Kill", action: actions.killServer, representedObject: server.id)
+        let item = menuItem(title: Strings.StatusMenu.kill, action: actions.killServer, representedObject: server.id)
         item.isEnabled = !killingServerIDs.contains(server.id)
         return item
     }
@@ -220,9 +220,9 @@ struct StatusMenuBuilder {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
 
-        submenu.addItem(menuItem(title: "Visual Studio Code", action: actions.openInVSCode, representedObject: server.id))
+        submenu.addItem(menuItem(title: Strings.ServerDetail.visualStudioCode, action: actions.openInVSCode, representedObject: server.id))
 
-        let xcode = menuItem(title: "Xcode", action: actions.openInXcode, representedObject: server.id)
+        let xcode = menuItem(title: Strings.ServerDetail.xcode, action: actions.openInXcode, representedObject: server.id)
         xcode.isEnabled = canOpenInXcode(server)
         submenu.addItem(xcode)
 
@@ -234,7 +234,7 @@ struct StatusMenuBuilder {
         submenu.autoenablesItems = false
 
         addDisabledItem(shortened(server.command, limit: 72), to: submenu)
-        submenu.addItem(menuItem(title: "Copy Command", action: actions.copyCommand, representedObject: server.id))
+        submenu.addItem(menuItem(title: Strings.StatusMenu.copyCommand, action: actions.copyCommand, representedObject: server.id))
 
         return submenu
     }

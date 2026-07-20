@@ -21,10 +21,10 @@ struct ServerDetailView: View {
                         Button {
                             Task { await viewModel.togglePin(server) }
                         } label: {
-                            Label(server.pinned ? "Unpin" : "Pin", systemImage: server.pinned ? "pin.fill" : "pin")
+                            Label(server.pinned ? Strings.ServerDetail.unpin : Strings.ServerDetail.pin, systemImage: server.pinned ? "pin.fill" : "pin")
                         }
                         .labelStyle(.iconOnly)
-                        .help(server.pinned ? "Unpin" : "Pin")
+                        .help(server.pinned ? Strings.ServerDetail.unpin : Strings.ServerDetail.pin)
                     }
 
                     HStack(spacing: 6) {
@@ -47,7 +47,7 @@ struct ServerDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         if server.isActive {
-                            Button("Stop", role: .destructive) {
+                            Button(Strings.ServerDetail.stop, role: .destructive) {
                                 Task { await viewModel.kill(server) }
                             }
                             .help("Stop the running process")
@@ -63,13 +63,13 @@ struct ServerDetailView: View {
                             .disabled(server.resolvedStartCommand == nil)
                             .help(server.resolvedStartCommand == nil ? "No start command is available" : "Run the saved start command")
 
-                            Button("Remove", role: .destructive) {
+                            Button(Strings.ServerDetail.remove, role: .destructive) {
                                 Task { await viewModel.remove(server) }
                             }
                             .help("Remove this server from Porchlight")
                         }
 
-                        Button("Hide") {
+                        Button(Strings.ServerDetail.hide) {
                             Task { await viewModel.hide(server) }
                         }
                         .help("Hide this server from normal lists")
@@ -78,15 +78,15 @@ struct ServerDetailView: View {
                     Divider()
 
                     HStack(spacing: 8) {
-                        Button("Open") { viewModel.open(server) }
+                        Button(Strings.ServerDetail.open) { viewModel.open(server) }
                             .disabled(!server.isActive)
 
                         if server.workingDirectory != nil {
-                            Button("Open in Finder") { viewModel.openInFinder(server) }
+                            Button(Strings.ServerDetail.openInFinder) { viewModel.openInFinder(server) }
 
-                            Menu("Open in App") {
-                                Button("Visual Studio Code") { viewModel.openInVSCode(server) }
-                                Button("Xcode") { viewModel.openInXcode(server) }
+                            Menu(Strings.ServerDetail.openInApp) {
+                                Button(Strings.ServerDetail.visualStudioCode) { viewModel.openInVSCode(server) }
+                                Button(Strings.ServerDetail.xcode) { viewModel.openInXcode(server) }
                                     .disabled(!server.canOpenInXcode)
                             }
                         }

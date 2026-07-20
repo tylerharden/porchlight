@@ -96,6 +96,8 @@ struct Strings {
         static let loadingGroups: String = "Loading Groups"
         static let noGroups: String = "No Groups"
         static let noGroupsDescription: String = "Create a group or let Porchlight discover active groups automatically."
+        static let selectGroup: String = "Select a Group"
+        static let selectGroupDescription: String = "Groups match servers without changing their type."
     }
     
     struct GroupRow {

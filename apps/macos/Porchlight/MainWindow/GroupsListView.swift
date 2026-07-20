@@ -33,7 +33,7 @@ struct GroupsListView: View {
                         }
                     } header: {
                         ServerListSectionHeader(
-                            title: "Groups",
+                            title: Strings.GroupsList.groupsHeader,
                             isRefreshing: false,
                             refresh: nil,
                             trailingAction: { selectedGroupID = groupStore.addGroup() },
@@ -42,7 +42,7 @@ struct GroupsListView: View {
                     }
 
                     if !hiddenGroupSummaries.isEmpty {
-                        Section("Hidden") {
+                        Section(Strings.GroupsList.hidden) {
                             ForEach(hiddenGroupSummaries) { group in
                                 GroupRowView(group: group, showIcon: showGroupIcons)
                             }
@@ -53,13 +53,13 @@ struct GroupsListView: View {
                 .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
                 .overlay {
                     if groupStore.isLoadingInitialGroups {
-                        CompactLoadingState(title: "Loading Groups")
+                        CompactLoadingState(title: Strings.GroupsList.loadingGroups)
                             .background(Color(nsColor: .windowBackgroundColor))
                     } else if groupStore.summaries.isEmpty {
                         CompactEmptyState(
-                            title: "No Groups",
+                            title: Strings.GroupsList.noGroups,
                             systemImage: "folder.badge.plus",
-                            description: "Create a group or let Porchlight discover active groups automatically."
+                            description: Strings.GroupsList.noGroupsDescription
                         )
                         .background(Color(nsColor: .windowBackgroundColor))
                     }
@@ -67,14 +67,14 @@ struct GroupsListView: View {
 
                 Group {
                     if groupStore.isLoadingInitialGroups {
-                        CompactLoadingState(title: "Loading Details")
+                        CompactLoadingState(title: Strings.ServerList.loadingDetails)
                     } else if let selectedGroupID {
                         GroupDetailView(groupID: selectedGroupID, store: groupStore)
                     } else {
                         CompactEmptyState(
-                            title: "Select a Group",
+                            title: Strings.GroupsList.selectGroup,
                             systemImage: "folder",
-                            description: "Groups match servers without changing their type."
+                            description: Strings.GroupsList.selectGroupDescription
                         )
                     }
                 }
