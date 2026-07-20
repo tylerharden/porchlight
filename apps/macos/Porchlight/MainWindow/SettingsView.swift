@@ -263,7 +263,7 @@ struct ServerListSectionHeader: View {
 
             Text(title)
                 .fontWeight(.semibold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
