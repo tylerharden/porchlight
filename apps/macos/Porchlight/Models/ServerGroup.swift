@@ -23,6 +23,66 @@ struct ServerGroupsDocument: Codable {
     }
 }
 
+struct GroupSummaryDocument: Decodable {
+    let groups: [GroupSummary]
+}
+
+struct GroupSummary: Decodable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let source: String
+    let manual: Bool
+    let kind: String?
+    let role: String?
+    let reason: String?
+    let color: String?
+    let icon: String?
+    let activeServerCount: Int
+    let recentServerCount: Int
+    let activeCount: Int
+    let hidden: Bool
+    let firstSeenAt: String?
+    let lastSeenAt: String?
+    let ports: [Int]
+    let paths: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case source
+        case manual
+        case kind
+        case role
+        case reason
+        case color
+        case icon
+        case activeServerCount = "active_server_count"
+        case recentServerCount = "recent_server_count"
+        case activeCount = "active_count"
+        case hidden
+        case firstSeenAt = "first_seen_at"
+        case lastSeenAt = "last_seen_at"
+        case ports
+        case paths
+    }
+
+    var firstSeenText: String? {
+        relativeText(for: firstSeenAt)
+    }
+
+    var lastSeenText: String? {
+        relativeText(for: lastSeenAt)
+    }
+
+    private func relativeText(for timestamp: String?) -> String? {
+        guard let timestamp else { return nil }
+        let date = ISO8601DateFormatter.groupSummary.date(from: timestamp)
+            ?? ISO8601DateFormatter.groupSummaryWithFractionalSeconds.date(from: timestamp)
+        guard let date else { return timestamp }
+        return RelativeDateTimeFormatter.groupSummary.localizedString(for: date, relativeTo: Date())
+    }
+}
+
 struct ServerGroup: Codable, Identifiable, Hashable {
     var id: String
     var name: String
@@ -63,11 +123,13 @@ final class ServerGroupStore {
     private let cli = PorchlightCLI()
 
     var groups: [ServerGroup] = []
+    var summaries: [GroupSummary] = []
     var errorMessage: String?
 
     func load() async {
         do {
             groups = try await cli.listGroups()
+            summaries = try await cli.groupSummaries()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -84,6 +146,29 @@ final class ServerGroupStore {
     func deleteGroup(id: ServerGroup.ID) {
         groups.removeAll { $0.id == id }
         save()
+    }
+
+    func promoteGroup(id: GroupSummary.ID) async {
+        do {
+            try await cli.promoteGroup(id: id)
+            groups = try await cli.listGroups()
+            try await reloadSummariesAndNotify()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setGroupHidden(id: GroupSummary.ID, hidden: Bool) async {
+        do {
+            if hidden {
+                try await cli.hideGroup(id: id)
+            } else {
+                try await cli.unhideGroup(id: id)
+            }
+            try await reloadSummariesAndNotify()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func binding<Value>(for id: ServerGroup.ID, keyPath: WritableKeyPath<ServerGroup, Value>) -> Binding<Value>? {
@@ -139,12 +224,17 @@ final class ServerGroupStore {
         Task {
             do {
                 try await cli.replaceGroups(groups)
-                errorMessage = nil
-                NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
+                try await reloadSummariesAndNotify()
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    private func reloadSummariesAndNotify() async throws {
+        summaries = try await cli.groupSummaries()
+        errorMessage = nil
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 }
 
@@ -175,4 +265,26 @@ extension Color {
             Int(round(color.blueComponent * 255))
         )
     }
+}
+
+private extension ISO8601DateFormatter {
+    static let groupSummary: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static let groupSummaryWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+}
+
+private extension RelativeDateTimeFormatter {
+    static let groupSummary: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter
+    }()
 }

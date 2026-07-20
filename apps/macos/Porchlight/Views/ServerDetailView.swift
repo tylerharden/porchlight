@@ -59,6 +59,10 @@ struct ServerDetailView: View {
                         Button("Remove", role: .destructive) {
                             Task { await viewModel.remove(server) }
                         }
+
+                        Button("Hide") {
+                            Task { await viewModel.hide(server) }
+                        }
                     }
 
                     Divider()

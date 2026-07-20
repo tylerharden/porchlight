@@ -69,13 +69,11 @@ final class ServerListViewModel {
     }
 
     func remove(_ server: LocalServer) async {
-        do {
-            try await cli.removeServer(server)
-            errorMessage = nil
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await performServerAction { try await cli.removeServer(server) }
+    }
+
+    func hide(_ server: LocalServer) async {
+        await performServerAction { try await cli.hideServer(server) }
     }
 
     func killAndRemove(_ server: LocalServer) async {
@@ -118,12 +116,18 @@ final class ServerListViewModel {
     }
 
     func togglePin(_ server: LocalServer) async {
-        do {
+        await performServerAction {
             if server.pinned {
                 try await cli.unpinServer(server)
             } else {
                 try await cli.pinServer(server)
             }
+        }
+    }
+
+    private func performServerAction(_ action: () async throws -> Void) async {
+        do {
+            try await action()
             errorMessage = nil
             await refresh()
         } catch {

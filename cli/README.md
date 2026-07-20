@@ -13,6 +13,10 @@ porchlight groups list
 porchlight groups add Frontend --command vite --command npm --color "#7C5CFF" --icon ~/Developer/app/public/favicon.ico --priority 10
 porchlight groups edit frontend --name Web --priority 20
 porchlight groups remove frontend
+porchlight groups summary --json
+porchlight groups promote meter-data-tool-poc
+porchlight groups hide meter-data-tool-poc
+porchlight groups unhide meter-data-tool-poc
 porchlight config show
 porchlight config set-auto-groups false
 porchlight config set-recent-ttl off
@@ -23,6 +27,8 @@ porchlight classify validate-rules
 porchlight reset
 porchlight kill <port-or-server-id>
 porchlight remove <port-or-server-id>
+porchlight hide <port-or-server-id>
+porchlight unhide <server-identity-key>
 porchlight pin <port-or-server-id>
 porchlight unpin <port-or-server-id>
 ```
@@ -155,6 +161,8 @@ For example, these paths share the same automatic group id because the repeated 
 The worktree paths classify as `ausmusicfinder` before falling back to the leaf folder name (`worktree-1`) or metadata inside the individual checkout.
 
 Use `porchlight classify explain <port-or-server-id>` to inspect the selected server's group, kind, role, confidence, and source evidence.
+
+Use `porchlight hide <port-or-server-id>` to suppress a specific server from normal lists. Use `porchlight groups hide <group-id>` to suppress every server matching a group. Hidden groups remain visible in `porchlight groups summary --json` with `hidden: true` so they can be shown again with `porchlight groups unhide <group-id>`.
 
 ## Classification Rules
 

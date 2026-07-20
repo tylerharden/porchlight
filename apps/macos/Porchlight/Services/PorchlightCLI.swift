@@ -33,6 +33,23 @@ struct PorchlightCLI {
         return try JSONDecoder().decode(ServerGroupsDocument.self, from: data).groups
     }
 
+    func groupSummaries() async throws -> [GroupSummary] {
+        let data = try await run(arguments: ["groups", "summary", "--json"])
+        return try JSONDecoder().decode(GroupSummaryDocument.self, from: data).groups
+    }
+
+    func promoteGroup(id: String) async throws {
+        _ = try await run(arguments: ["groups", "promote", id])
+    }
+
+    func hideGroup(id: String) async throws {
+        _ = try await run(arguments: ["groups", "hide", id])
+    }
+
+    func unhideGroup(id: String) async throws {
+        _ = try await run(arguments: ["groups", "unhide", id])
+    }
+
     func replaceGroups(_ groups: [ServerGroup]) async throws {
         let data = try JSONEncoder.porchlight.encode(ServerGroupsDocument(groups: groups))
         _ = try await run(arguments: ["groups", "replace", "--stdin"], stdin: data)
@@ -52,6 +69,10 @@ struct PorchlightCLI {
 
     func removeServer(_ server: LocalServer) async throws {
         _ = try await run(arguments: ["remove", server.id])
+    }
+
+    func hideServer(_ server: LocalServer) async throws {
+        _ = try await run(arguments: ["hide", server.id])
     }
 
     func pinServer(_ server: LocalServer) async throws {

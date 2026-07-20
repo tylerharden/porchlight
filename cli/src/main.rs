@@ -8,7 +8,10 @@ mod tui;
 use clap::{Parser, Subcommand};
 use classification::{ServerGroup, ServerGroups};
 use config::Config;
+use model::{LocalServer, ServerStatus};
+use serde::Serialize;
 use state::StateError;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read as _;
 
 #[derive(Parser)]
@@ -53,6 +56,16 @@ enum Commands {
     /// Remove a server from recents and pins.
     Remove {
         /// Port number or server id from `porchlight list --json`.
+        target: String,
+    },
+    /// Hide a server from normal lists.
+    Hide {
+        /// Port number, server id, or identity key from `porchlight list --json`.
+        target: String,
+    },
+    /// Show a previously hidden server.
+    Unhide {
+        /// Server identity key, port, or server id.
         target: String,
     },
     /// Pin a server so it remains visible when stopped.
@@ -169,6 +182,128 @@ enum GroupCommands {
         #[arg(long)]
         stdin: bool,
     },
+    /// Summarize configured and discovered groups.
+    Summary {
+        /// Print machine-readable JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Create or update a manual group from a discovered automatic group.
+    Promote {
+        /// Automatic group id from `porchlight groups summary --json`.
+        target: String,
+    },
+    /// Hide all servers that match a group.
+    Hide {
+        /// Group id from `porchlight groups summary --json`.
+        target: String,
+    },
+    /// Show servers for a previously hidden group.
+    Unhide {
+        /// Group id from `porchlight groups summary --json`.
+        target: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct GroupSummaryDocument {
+    groups: Vec<GroupSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct GroupSummary {
+    id: String,
+    name: String,
+    source: String,
+    manual: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon: Option<String>,
+    active_server_count: usize,
+    recent_server_count: usize,
+    active_count: u64,
+    hidden: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_seen_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_seen_at: Option<String>,
+    ports: Vec<u16>,
+    paths: Vec<String>,
+}
+
+impl GroupSummary {
+    fn manual(group: ServerGroup) -> Self {
+        Self {
+            id: group.id,
+            name: group.name,
+            source: "manual".into(),
+            manual: true,
+            kind: None,
+            role: None,
+            reason: None,
+            color: Some(group.color),
+            icon: group.icon,
+            active_server_count: 0,
+            recent_server_count: 0,
+            active_count: 0,
+            hidden: false,
+            first_seen_at: None,
+            last_seen_at: None,
+            ports: vec![],
+            paths: vec![],
+        }
+    }
+
+    fn automatic(id: String, name: String) -> Self {
+        Self {
+            id,
+            name,
+            source: "automatic".into(),
+            manual: false,
+            kind: None,
+            role: None,
+            reason: None,
+            color: None,
+            icon: None,
+            active_server_count: 0,
+            recent_server_count: 0,
+            active_count: 0,
+            hidden: false,
+            first_seen_at: None,
+            last_seen_at: None,
+            ports: vec![],
+            paths: vec![],
+        }
+    }
+
+    fn from_group_match(group: classification::ServerGroupMatch, source: &str) -> Self {
+        Self {
+            id: group.id,
+            name: group.name,
+            source: source.into(),
+            manual: source == "manual",
+            kind: Some(group.kind),
+            role: Some(group.role),
+            reason: Some(group.source),
+            color: group.color,
+            icon: group.icon,
+            active_server_count: 0,
+            recent_server_count: 0,
+            active_count: 0,
+            hidden: false,
+            first_seen_at: None,
+            last_seen_at: None,
+            ports: vec![],
+            paths: vec![],
+        }
+    }
 }
 
 fn main() {
@@ -196,6 +331,7 @@ fn run() -> Result<(), PorchlightError> {
             let active_servers = scanner::scan(&config)?;
             let mut state = state::AppState::load()?;
             let servers = state.merge_servers(active_servers, &config);
+            let servers = state.visible_servers(servers);
             state.save()?;
 
             if json {
@@ -244,7 +380,7 @@ fn run() -> Result<(), PorchlightError> {
             }
         },
         Commands::Classify { command } => handle_classify_command(command, &config)?,
-        Commands::Groups { command } => handle_group_command(command)?,
+        Commands::Groups { command } => handle_group_command(command, &config)?,
         Commands::Kill { target } => {
             let killed = kill_matching_servers(&config, &target)?;
             println!(
@@ -254,19 +390,41 @@ fn run() -> Result<(), PorchlightError> {
             );
         }
         Commands::Remove { target } => {
-            let mut state = state::AppState::load()?;
-            let removed = state.remove(&target);
-            state.save()?;
+            let removed = update_state(|state| state.remove(&target))?;
             println!(
                 "Removed {} server{}.",
                 removed,
                 if removed == 1 { "" } else { "s" }
             );
         }
-        Commands::Pin { target } => {
+        Commands::Hide { target } => {
+            let active_servers = scanner::scan(&config)?;
             let mut state = state::AppState::load()?;
-            let changed = state.set_pinned(&target, true);
+            state.merge_servers(active_servers, &config);
+            let changed = state.hide_server(&target);
             state.save()?;
+            println!(
+                "{}",
+                if changed {
+                    "Hidden."
+                } else {
+                    "No matching server to hide."
+                }
+            );
+        }
+        Commands::Unhide { target } => {
+            let changed = update_state(|state| state.unhide_server(&target))?;
+            println!(
+                "{}",
+                if changed {
+                    "Unhidden."
+                } else {
+                    "No matching hidden server."
+                }
+            );
+        }
+        Commands::Pin { target } => {
+            let changed = update_state(|state| state.set_pinned(&target, true))?;
             println!(
                 "{}",
                 if changed {
@@ -277,9 +435,7 @@ fn run() -> Result<(), PorchlightError> {
             );
         }
         Commands::Unpin { target } => {
-            let mut state = state::AppState::load()?;
-            let changed = state.set_pinned(&target, false);
-            state.save()?;
+            let changed = update_state(|state| state.set_pinned(&target, false))?;
             println!(
                 "{}",
                 if changed {
@@ -367,7 +523,7 @@ fn handle_classify_command(
     Ok(())
 }
 
-fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
+fn handle_group_command(command: GroupCommands, config: &Config) -> Result<(), PorchlightError> {
     match command {
         GroupCommands::List { json } => {
             let groups = classification::load_server_groups();
@@ -492,9 +648,207 @@ fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
                 if groups.groups.len() == 1 { "" } else { "s" }
             );
         }
+        GroupCommands::Summary { json } => {
+            let groups = group_summary(config)?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&GroupSummaryDocument { groups })
+                        .expect("group summary serializes")
+                );
+            } else if groups.is_empty() {
+                println!("No groups found.");
+            } else {
+                for group in groups {
+                    println!(
+                        "{}\t{}\t{} active\t{}{}",
+                        group.id,
+                        group.name,
+                        group.active_server_count,
+                        group.source,
+                        if group.hidden { "\thidden" } else { "" }
+                    );
+                }
+            }
+        }
+        GroupCommands::Promote { target } => {
+            let group = promote_group(config, &target)?;
+            println!("Created manual group {}.", group.id);
+        }
+        GroupCommands::Hide { target } => {
+            let changed = update_state(|state| state.hide_group(&target))?;
+            println!(
+                "{}",
+                if changed {
+                    "Group hidden."
+                } else {
+                    "Group was already hidden."
+                }
+            );
+        }
+        GroupCommands::Unhide { target } => {
+            let changed = update_state(|state| state.unhide_group(&target))?;
+            println!(
+                "{}",
+                if changed {
+                    "Group unhidden."
+                } else {
+                    "Group was not hidden."
+                }
+            );
+        }
     }
 
     Ok(())
+}
+
+fn current_servers(config: &Config) -> Result<Vec<LocalServer>, PorchlightError> {
+    Ok(current_servers_and_state(config)?.0)
+}
+
+fn update_state<T>(update: impl FnOnce(&mut state::AppState) -> T) -> Result<T, PorchlightError> {
+    let mut state = state::AppState::load()?;
+    let output = update(&mut state);
+    state.save()?;
+    Ok(output)
+}
+
+fn current_servers_and_state(
+    config: &Config,
+) -> Result<(Vec<LocalServer>, state::AppState), PorchlightError> {
+    let active_servers = scanner::scan(config)?;
+    let mut state = state::AppState::load()?;
+    let servers = state.merge_servers(active_servers, config);
+    state.save()?;
+    Ok((servers, state))
+}
+
+fn group_summary(config: &Config) -> Result<Vec<GroupSummary>, PorchlightError> {
+    let manual_groups = classification::load_server_groups().groups;
+    let manual_ids = manual_groups
+        .iter()
+        .map(|group| group.id.clone())
+        .collect::<BTreeSet<_>>();
+    let (servers, state) = current_servers_and_state(config)?;
+    let hidden_group_ids = state.hidden_groups.clone();
+    let mut summaries = BTreeMap::<String, GroupSummary>::new();
+
+    for group in manual_groups {
+        summaries.insert(group.id.clone(), GroupSummary::manual(group));
+    }
+
+    for stats in state.group_stats.into_values() {
+        let summary = summaries
+            .entry(stats.id.clone())
+            .or_insert_with(|| GroupSummary::automatic(stats.id.clone(), stats.name.clone()));
+
+        summary.kind = summary.kind.take().or(Some(stats.kind));
+        summary.role = summary.role.take().or(Some(stats.role));
+        summary.reason = summary.reason.take().or(Some(stats.source));
+        summary.color = summary.color.take().or(stats.color);
+        summary.icon = summary.icon.take().or(stats.icon);
+        summary.active_count = stats.active_count;
+        summary.first_seen_at = Some(stats.first_seen_at);
+        summary.last_seen_at = Some(stats.last_seen_at);
+    }
+
+    for server in servers {
+        let Some(group) = server.group.clone() else {
+            continue;
+        };
+        let source = if manual_ids.contains(&group.id) || group.source == "manual group" {
+            "manual"
+        } else {
+            "automatic"
+        };
+        let summary = summaries
+            .entry(group.id.clone())
+            .or_insert_with(|| GroupSummary::from_group_match(group.clone(), source));
+
+        if server.status == ServerStatus::Active {
+            summary.active_server_count += 1;
+        } else if server.status == ServerStatus::Recent {
+            summary.recent_server_count += 1;
+        }
+        if !summary.ports.contains(&server.port) {
+            summary.ports.push(server.port);
+        }
+        if let Some(path) = server
+            .working_directory
+            .filter(|path| !path.trim().is_empty() && path != "/")
+        {
+            if !summary.paths.contains(&path) {
+                summary.paths.push(path);
+            }
+        }
+    }
+
+    for (id, summary) in &mut summaries {
+        summary.hidden = hidden_group_ids.contains(id);
+    }
+
+    let mut groups = summaries.into_values().collect::<Vec<_>>();
+    groups.sort_by(|left, right| {
+        right
+            .manual
+            .cmp(&left.manual)
+            .then_with(|| left.hidden.cmp(&right.hidden))
+            .then_with(|| right.active_server_count.cmp(&left.active_server_count))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    Ok(groups)
+}
+
+fn promote_group(config: &Config, target: &str) -> Result<ServerGroup, PorchlightError> {
+    let servers = current_servers(config)?;
+    let matching_servers = servers
+        .iter()
+        .filter(|server| {
+            server
+                .group
+                .as_ref()
+                .is_some_and(|group| group.id == target)
+        })
+        .collect::<Vec<_>>();
+    let group_match = matching_servers
+        .iter()
+        .find_map(|server| server.group.clone())
+        .ok_or_else(|| PorchlightError::NoMatchingGroup(target.to_string()))?;
+
+    let mut working_directories = matching_servers
+        .iter()
+        .filter_map(|server| server.working_directory.clone())
+        .filter(|path| !path.trim().is_empty() && path != "/")
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let mut command_contains = vec![];
+    if working_directories.is_empty() {
+        command_contains = matching_servers
+            .iter()
+            .map(|server| server.command.clone())
+            .filter(|command| !command.trim().is_empty())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+    }
+    working_directories.sort();
+
+    let group = ServerGroup {
+        id: group_match.id,
+        name: group_match.name,
+        color: group_match.color.unwrap_or_else(|| "#34C759".into()),
+        icon: group_match.icon,
+        command_contains,
+        working_directories,
+        priority: 100,
+    };
+
+    let mut groups = classification::load_server_groups();
+    groups.groups.retain(|existing| existing.id != group.id);
+    groups.groups.push(group.clone());
+    save_groups(&groups)?;
+    Ok(group)
 }
 
 fn find_group_mut<'a>(

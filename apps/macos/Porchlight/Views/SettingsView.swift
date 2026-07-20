@@ -87,36 +87,7 @@ struct SettingsView: View {
             HSplitView {
                 List(selection: $selectedServerID) {
                     Section {
-                        ForEach(viewModel.servers) { server in
-                            ServerRowView(
-                                server: server,
-                                isStarting: viewModel.startingServerIDs.contains(server.id)
-                            )
-                                .tag(server.id)
-                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                    if server.isActive {
-                                        Button("Turn Off", role: .destructive) {
-                                            Task { await viewModel.kill(server) }
-                                        }
-                                    } else {
-                                        Button("Turn On") {
-                                            Task { await viewModel.start(server) }
-                                        }
-                                        .disabled(server.resolvedStartCommand == nil)
-                                    }
-                                }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    if server.pinned {
-                                        Button("Unpin") {
-                                            Task { await viewModel.togglePin(server) }
-                                        }
-                                    } else {
-                                        Button("Remove", role: .destructive) {
-                                            Task { await viewModel.remove(server) }
-                                        }
-                                    }
-                                }
-                        }
+                        EmptyView()
                     } header: {
                         HStack {
                             Text(viewModel.hasActiveServers ? "\(viewModel.activeServerCount) Active" : "Servers")
@@ -128,6 +99,49 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.plain)
                             .disabled(viewModel.isRefreshing)
+                        }
+                    }
+
+                    ForEach(serverSections) { section in
+                        Section {
+                            ForEach(section.servers) { server in
+                                ServerRowView(
+                                    server: server,
+                                    isStarting: viewModel.startingServerIDs.contains(server.id),
+                                    showsGroup: section.group == nil
+                                )
+                                    .tag(server.id)
+                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                        if server.isActive {
+                                            Button("Turn Off", role: .destructive) {
+                                                Task { await viewModel.kill(server) }
+                                            }
+                                        } else {
+                                            Button("Turn On") {
+                                                Task { await viewModel.start(server) }
+                                            }
+                                            .disabled(server.resolvedStartCommand == nil)
+                                        }
+                                    }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        if server.pinned {
+                                            Button("Unpin") {
+                                                Task { await viewModel.togglePin(server) }
+                                            }
+                                        } else {
+                                            Button("Hide") {
+                                                Task { await viewModel.hide(server) }
+                                            }
+                                            Button("Remove", role: .destructive) {
+                                                Task { await viewModel.remove(server) }
+                                            }
+                                        }
+                                    }
+                            }
+                        } header: {
+                            if let group = section.group {
+                                ServerGroupHeaderView(group: group)
+                            }
                         }
                     }
                 }
@@ -179,6 +193,30 @@ struct SettingsView: View {
         return viewModel.servers.first { $0.id == selectedServerID }
     }
 
+    private var serverSections: [ServerSection] {
+        var sections: [ServerSection] = []
+        var ungroupedServers: [LocalServer] = []
+
+        for server in viewModel.servers {
+            guard let group = server.group else {
+                ungroupedServers.append(server)
+                continue
+            }
+
+            if let index = sections.firstIndex(where: { $0.id == group.id }) {
+                sections[index].servers.append(server)
+            } else {
+                sections.append(ServerSection(group: group, servers: [server]))
+            }
+        }
+
+        if !ungroupedServers.isEmpty {
+            sections.append(ServerSection(group: nil, servers: ungroupedServers))
+        }
+
+        return sections
+    }
+
     private func selectFallbackServer() {
         guard !viewModel.servers.isEmpty else {
             selectedServerID = nil
@@ -203,16 +241,30 @@ struct SettingsView: View {
             HSplitView {
                 List(selection: $selectedGroupID) {
                     Section {
-                        ForEach(groupStore.groups) { group in
+                        ForEach(groupStore.summaries) { group in
                             Label {
-                                Text(group.name)
+                                HStack {
+                                    Text(group.name)
+                                    Spacer()
+                                    Text(group.manual ? "Manual" : "Auto")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    if group.hidden {
+                                        Text("Hidden")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             } icon: {
-                                GroupIconView(icon: group.icon, color: group.color, size: 10)
+                                GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
                             }
                             .tag(group.id)
                         }
                         .onDelete { offsets in
-                            let ids = offsets.map { groupStore.groups[$0].id }
+                            let ids = offsets
+                                .map { groupStore.summaries[$0] }
+                                .filter(\.manual)
+                                .map(\.id)
                             ids.forEach(groupStore.deleteGroup)
                             selectFallbackGroup()
                         }
@@ -232,11 +284,11 @@ struct SettingsView: View {
                 .listStyle(.sidebar)
                 .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
                 .overlay {
-                    if groupStore.groups.isEmpty {
+                    if groupStore.summaries.isEmpty {
                         CompactEmptyState(
                             title: "No Groups",
                             systemImage: "folder.badge.plus",
-                            description: "Create a group to tag matching servers."
+                            description: "Create a group or let Porchlight discover active groups automatically."
                         )
                         .background(Color(nsColor: .windowBackgroundColor))
                     }
@@ -263,13 +315,13 @@ struct SettingsView: View {
     }
 
     private func selectFallbackGroup() {
-        guard !groupStore.groups.isEmpty else {
+        guard !groupStore.summaries.isEmpty else {
             selectedGroupID = nil
             return
         }
 
-        if selectedGroupID == nil || !groupStore.groups.contains(where: { $0.id == selectedGroupID }) {
-            selectedGroupID = groupStore.groups.first?.id
+        if selectedGroupID == nil || !groupStore.summaries.contains(where: { $0.id == selectedGroupID }) {
+            selectedGroupID = groupStore.summaries.first?.id
         }
     }
 
@@ -409,6 +461,30 @@ struct SettingsView: View {
 
     private func open(_ url: URL) {
         NSWorkspace.shared.open(url)
+    }
+}
+
+private struct ServerSection: Identifiable {
+    let group: ServerGroupMatch?
+    var servers: [LocalServer]
+
+    var id: String {
+        group?.id ?? "ungrouped"
+    }
+}
+
+private struct ServerGroupHeaderView: View {
+    let group: ServerGroupMatch
+
+    var body: some View {
+        HStack(spacing: 6) {
+            GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
+            Text(group.name)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Color(hex: group.color ?? "#8E8E93"))
+        }
+        .textCase(nil)
+        .padding(.top, 4)
     }
 }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct ServerRowView: View {
     let server: LocalServer
     var isStarting = false
+    var showsGroup = true
 
     var body: some View {
         HStack(spacing: 8) {
@@ -23,7 +24,7 @@ struct ServerRowView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if let group = server.group {
+            if showsGroup, let group = server.group {
                 GroupIconView(icon: server.icon ?? group.icon, color: group.color ?? "#8E8E93", size: 8)
 
                 Text(group.name)

@@ -104,7 +104,8 @@ impl TuiApp {
     fn refresh(&mut self) -> Result<(), TuiError> {
         let active_servers = scanner::scan(&self.config)?;
         let mut state = state::AppState::load()?;
-        self.servers = state.merge_servers(active_servers, &self.config);
+        let servers = state.merge_servers(active_servers, &self.config);
+        self.servers = state.visible_servers(servers);
         state.save()?;
         self.last_refresh = Instant::now();
         self.clamp_selection();

@@ -309,11 +309,15 @@ final class StatusBarController: NSObject {
             killAndRemove.target = self
             killAndRemove.representedObject = server.id
             submenu.addItem(killAndRemove)
+
+            submenu.addItem(hideMenuItem(for: server))
         } else {
             let pin = pinMenuItem(for: server)
             submenu.addItem(pin)
 
             submenu.addItem(startMenuItem(for: server))
+
+            submenu.addItem(hideMenuItem(for: server))
 
             let remove = NSMenuItem(title: "Remove", action: #selector(remove(_:)), keyEquivalent: "")
             remove.target = self
@@ -326,6 +330,13 @@ final class StatusBarController: NSObject {
 
     private func pinMenuItem(for server: LocalServer) -> NSMenuItem {
         let item = NSMenuItem(title: server.pinned ? "Unpin" : "Pin", action: #selector(togglePin(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = server.id
+        return item
+    }
+
+    private func hideMenuItem(for server: LocalServer) -> NSMenuItem {
+        let item = NSMenuItem(title: "Hide", action: #selector(hide(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = server.id
         return item
@@ -588,6 +599,14 @@ final class StatusBarController: NSObject {
         guard let server = server(for: sender) else { return }
         Task {
             try? await cli.removeServer(server)
+            await refresh()
+        }
+    }
+
+    @objc private func hide(_ sender: NSMenuItem) {
+        guard let server = server(for: sender) else { return }
+        Task {
+            try? await cli.hideServer(server)
             await refresh()
         }
     }

@@ -16,6 +16,30 @@ pub struct AppState {
     pub recent_servers: Vec<LocalServer>,
     #[serde(default)]
     pub pinned_servers: Vec<LocalServer>,
+    #[serde(default)]
+    pub group_stats: HashMap<String, GroupStats>,
+    #[serde(default)]
+    pub hidden_servers: HashSet<String>,
+    #[serde(default)]
+    pub hidden_groups: HashSet<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct GroupStats {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub role: String,
+    pub source: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    pub first_seen_at: String,
+    pub last_seen_at: String,
+    pub active_count: u64,
 }
 
 impl AppState {
@@ -78,6 +102,11 @@ impl AppState {
         let now_text = format_timestamp(now);
 
         let previous_recent_servers = std::mem::take(&mut self.recent_servers);
+        let previous_active_keys = previous_recent_servers
+            .iter()
+            .filter(|server| server.status == ServerStatus::Active)
+            .map(server_identity_key)
+            .collect::<HashSet<_>>();
         backfill_unknown_active_locations(&mut active_servers, &previous_recent_servers);
 
         let active_keys = active_servers
@@ -155,6 +184,8 @@ impl AppState {
             server.group = infer_server_group(server, config.show_automatic_groups);
         }
 
+        self.update_group_stats(&output, &previous_active_keys, &now_text);
+
         self.recent_servers = output.iter().cloned().take(MAX_RECENT_SERVERS).collect();
 
         output
@@ -167,6 +198,54 @@ impl AppState {
         self.pinned_servers
             .retain(|server| !server_matches_target(server, target));
         before_count - self.recent_servers.len() - self.pinned_servers.len()
+    }
+
+    pub fn hide_server(&mut self, target: &str) -> bool {
+        let matching_keys = self
+            .recent_servers
+            .iter()
+            .chain(self.pinned_servers.iter())
+            .filter(|server| server_matches_target(server, target))
+            .map(server_identity_key)
+            .collect::<HashSet<_>>();
+
+        let mut changed = false;
+        for key in matching_keys {
+            changed = self.hidden_servers.insert(key) || changed;
+        }
+        changed
+    }
+
+    pub fn unhide_server(&mut self, target: &str) -> bool {
+        self.hidden_servers.remove(target)
+            || self
+                .recent_servers
+                .iter()
+                .chain(self.pinned_servers.iter())
+                .filter(|server| server_matches_target(server, target))
+                .map(server_identity_key)
+                .any(|key| self.hidden_servers.remove(&key))
+    }
+
+    pub fn hide_group(&mut self, target: &str) -> bool {
+        self.hidden_groups.insert(target.to_string())
+    }
+
+    pub fn unhide_group(&mut self, target: &str) -> bool {
+        self.hidden_groups.remove(target)
+    }
+
+    pub fn visible_servers(&self, servers: Vec<LocalServer>) -> Vec<LocalServer> {
+        servers
+            .into_iter()
+            .filter(|server| !self.hidden_servers.contains(&server_identity_key(server)))
+            .filter(|server| {
+                server
+                    .group
+                    .as_ref()
+                    .is_none_or(|group| !self.hidden_groups.contains(&group.id))
+            })
+            .collect()
     }
 
     pub fn set_pinned(&mut self, target: &str, pinned: bool) -> bool {
@@ -203,6 +282,53 @@ impl AppState {
         }
 
         changed
+    }
+
+    fn update_group_stats(
+        &mut self,
+        servers: &[LocalServer],
+        previous_active_keys: &HashSet<String>,
+        now: &str,
+    ) {
+        for server in servers {
+            if server.status != ServerStatus::Active {
+                continue;
+            }
+
+            let Some(group) = &server.group else {
+                continue;
+            };
+
+            let entry = self
+                .group_stats
+                .entry(group.id.clone())
+                .or_insert_with(|| GroupStats {
+                    id: group.id.clone(),
+                    name: group.name.clone(),
+                    kind: group.kind.clone(),
+                    role: group.role.clone(),
+                    source: group.source.clone(),
+                    color: group.color.clone(),
+                    icon: group.icon.clone(),
+                    first_seen_at: now.to_string(),
+                    last_seen_at: now.to_string(),
+                    active_count: 0,
+                });
+
+            entry.name = group.name.clone();
+            entry.kind = group.kind.clone();
+            entry.role = group.role.clone();
+            entry.source = group.source.clone();
+            entry.color = group.color.clone();
+            entry.icon = group.icon.clone();
+            entry.last_seen_at = now.to_string();
+
+            if entry.active_count == 0
+                || !previous_active_keys.contains(&server_identity_key(server))
+            {
+                entry.active_count += 1;
+            }
+        }
     }
 }
 
@@ -349,12 +475,16 @@ mod tests {
     use crate::classification::ServerGroupMatch;
     use crate::config::Config;
     use crate::model::{LocalServer, ServerStatus};
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn merges_active_servers_over_matching_recents() {
         let mut state = AppState {
             recent_servers: vec![server("one", 8000, "/tmp/one", ServerStatus::Recent)],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         let servers = state.merge_servers(
@@ -373,6 +503,9 @@ mod tests {
         let mut state = AppState {
             recent_servers: vec![fresh_recent("old", 3000, "/tmp/old")],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         let servers = state.merge_servers(
@@ -417,6 +550,9 @@ mod tests {
                 fresh_recent("two", 9000, "/tmp/two"),
             ],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         let removed = state.remove("8000:/tmp/one");
@@ -431,6 +567,9 @@ mod tests {
         let mut state = AppState {
             recent_servers: vec![fresh_recent("one", 8000, "/tmp/one")],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         assert!(state.set_pinned("8000:/tmp/one", true));
@@ -463,6 +602,9 @@ mod tests {
         let mut state = AppState {
             recent_servers: vec![fresh_recent("server", 8000, "/tmp/app")],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         let mut active = server("server", 8000, "/tmp/app", ServerStatus::Active);
@@ -482,6 +624,9 @@ mod tests {
         let mut state = AppState {
             recent_servers: vec![fresh_recent("server", 8000, "/tmp/app")],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         let mut active = server("8000:unknown", 8000, "/tmp/app", ServerStatus::Active);
@@ -502,6 +647,9 @@ mod tests {
         let mut state = AppState {
             recent_servers: vec![fresh_recent("server", 8000, "/tmp/app")],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
 
         let servers = state.merge_servers(vec![], &Config::default());
@@ -532,6 +680,9 @@ mod tests {
         let mut state = AppState {
             recent_servers: vec![recent],
             pinned_servers: vec![],
+            group_stats: HashMap::new(),
+            hidden_servers: HashSet::new(),
+            hidden_groups: HashSet::new(),
         };
         let config = Config {
             show_automatic_groups: false,
@@ -543,6 +694,94 @@ mod tests {
         assert_eq!(servers.len(), 1);
         assert_eq!(servers[0].group, None);
         assert_eq!(state.recent_servers[0].group, None);
+    }
+
+    #[test]
+    fn counts_group_activation_occurrences_without_counting_refreshes() {
+        let root = std::env::temp_dir().join(format!(
+            "porchlight-group-stats-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("README.md"), "# Stats App\n").unwrap();
+
+        let mut state = AppState::default();
+        let active = server("server", 8000, root.to_str().unwrap(), ServerStatus::Active);
+
+        state.merge_servers(vec![active.clone()], &Config::default());
+        state.merge_servers(vec![active.clone()], &Config::default());
+        state.merge_servers(vec![], &Config::default());
+        state.merge_servers(vec![active], &Config::default());
+
+        let stats = state.group_stats.get("stats-app").unwrap();
+        assert_eq!(stats.active_count, 2);
+        assert_eq!(stats.name, "Stats App");
+        assert_eq!(stats.kind, "Django");
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn repairs_zero_group_activation_count_for_active_servers() {
+        let root = std::env::temp_dir().join(format!(
+            "porchlight-group-stats-repair-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("README.md"), "# Repaired Stats App\n").unwrap();
+
+        let mut state = AppState::default();
+        let active = server("server", 8000, root.to_str().unwrap(), ServerStatus::Active);
+
+        state.merge_servers(vec![active.clone()], &Config::default());
+        state
+            .group_stats
+            .get_mut("repaired-stats-app")
+            .unwrap()
+            .active_count = 0;
+        state.merge_servers(vec![active.clone()], &Config::default());
+        state.merge_servers(vec![active], &Config::default());
+
+        let stats = state.group_stats.get("repaired-stats-app").unwrap();
+        assert_eq!(stats.active_count, 1);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn filters_hidden_servers_and_groups() {
+        let mut visible = server("visible", 8000, "/tmp/visible", ServerStatus::Active);
+        visible.group = Some(ServerGroupMatch {
+            id: "visible-group".into(),
+            name: "Visible Group".into(),
+            kind: "Django".into(),
+            role: "Backend".into(),
+            color: None,
+            icon: None,
+            confidence: 1.0,
+            source: "manual group".into(),
+        });
+        let mut hidden_by_group = server("grouped", 8001, "/tmp/grouped", ServerStatus::Active);
+        hidden_by_group.group = Some(ServerGroupMatch {
+            id: "hidden-group".into(),
+            name: "Hidden Group".into(),
+            kind: "Django".into(),
+            role: "Backend".into(),
+            color: None,
+            icon: None,
+            confidence: 1.0,
+            source: "manual group".into(),
+        });
+        let hidden_by_identity = server("hidden", 8002, "/tmp/hidden", ServerStatus::Active);
+
+        let mut state = AppState::default();
+        state.hide_group("hidden-group");
+        state.hidden_servers.insert("8002:/tmp/hidden".into());
+
+        let servers =
+            state.visible_servers(vec![visible.clone(), hidden_by_group, hidden_by_identity]);
+
+        assert_eq!(servers, vec![visible]);
     }
 
     fn fresh_recent(id: &str, port: u16, working_directory: &str) -> LocalServer {

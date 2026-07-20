@@ -14,6 +14,7 @@ struct GroupDetailView: View {
             let priority = store.binding(for: groupID, keyPath: \.priority),
             let group = store.groups.first(where: { $0.id == groupID })
         {
+            let summary = store.summaries.first { $0.id == groupID }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .center, spacing: 10) {
@@ -89,6 +90,10 @@ struct GroupDetailView: View {
 
                     Divider()
 
+                    Button(summary?.hidden == true ? "Show Group Servers" : "Hide Group Servers") {
+                        Task { await store.setGroupHidden(id: groupID, hidden: !(summary?.hidden ?? false)) }
+                    }
+
                     Button("Delete Group", role: .destructive) {
                         store.deleteGroup(id: groupID)
                     }
@@ -97,7 +102,15 @@ struct GroupDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            CompactEmptyState(title: "Group Not Found", systemImage: "folder.badge.questionmark")
+            if let summary = store.summaries.first(where: { $0.id == groupID }) {
+                AutomaticGroupDetailView(
+                    summary: summary,
+                    customize: { await store.promoteGroup(id: summary.id) },
+                    toggleHidden: { await store.setGroupHidden(id: summary.id, hidden: !summary.hidden) }
+                )
+            } else {
+                CompactEmptyState(title: "Group Not Found", systemImage: "folder.badge.questionmark")
+            }
         }
     }
 
@@ -127,6 +140,107 @@ struct GroupDetailView: View {
             get: { value.wrappedValue ?? "" },
             set: { value.wrappedValue = $0 }
         )
+    }
+}
+
+struct AutomaticGroupDetailView: View {
+    let summary: GroupSummary
+    let customize: () async -> Void
+    let toggleHidden: () async -> Void
+    @State private var isCustomizing = false
+    @State private var isTogglingHidden = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .center, spacing: 10) {
+                    GroupIconView(icon: summary.icon, color: summary.color ?? "#8E8E93", size: 16)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(summary.name)
+                            .font(.title2.weight(.semibold))
+                        Text("Automatic Group")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        if summary.hidden {
+                            Text("Hidden")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Divider()
+
+                SummaryRow(label: "Kind", value: summary.kind ?? "Unknown")
+                SummaryRow(label: "Role", value: summary.role ?? "Service")
+                SummaryRow(label: "Active Servers", value: summary.activeServerCount.formatted())
+                SummaryRow(label: "Recent Servers", value: summary.recentServerCount.formatted())
+                SummaryRow(label: "Activations", value: summary.activeCount.formatted())
+                if let firstSeenText = summary.firstSeenText {
+                    SummaryRow(label: "First Seen", value: firstSeenText)
+                }
+                if let lastSeenText = summary.lastSeenText {
+                    SummaryRow(label: "Last Seen", value: lastSeenText)
+                }
+                SummaryRow(label: "Source", value: summary.reason ?? summary.source)
+
+                if !summary.ports.isEmpty {
+                    SummaryRow(label: "Ports", value: summary.ports.map(String.init).joined(separator: ", "))
+                }
+
+                if !summary.paths.isEmpty {
+                    DetailEditorRow(label: "Paths") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(summary.paths, id: \.self) { path in
+                                Text(path)
+                                    .textSelection(.enabled)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+
+                Button(summary.hidden ? "Show Group Servers" : "Hide Group Servers") {
+                    guard !isTogglingHidden else { return }
+                    isTogglingHidden = true
+                    Task {
+                        await toggleHidden()
+                        isTogglingHidden = false
+                    }
+                }
+                .disabled(isTogglingHidden)
+
+                Button("Customize") {
+                    guard !isCustomizing else { return }
+                    isCustomizing = true
+                    Task {
+                        await customize()
+                        isCustomizing = false
+                    }
+                }
+                .disabled(isCustomizing)
+
+                Text("Customize saves this discovered group as a manual group, then lets you edit its name, colour, icon, and match rules.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+struct SummaryRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        DetailEditorRow(label: label) {
+            Text(value)
+                .textSelection(.enabled)
+        }
     }
 }
 
