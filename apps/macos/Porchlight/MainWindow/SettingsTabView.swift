@@ -10,17 +10,17 @@ struct SettingsTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PreferenceRow(label: "General:") {
+            PreferenceRow(label: Strings.Settings.general) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Toggle("Refresh server list", isOn: $settings.autoRefresh)
+                    Toggle(Strings.Settings.refresh, isOn: $settings.autoRefresh)
                     if settings.autoRefresh {
                         HStack(spacing: 12) {
-                            Text("Every")
-                            Stepper("\(Int(settings.refreshInterval)) seconds", value: $settings.refreshInterval, in: 1...30, step: 1)
+                            Text(Strings.Settings.every)
+                            Stepper("\(Int(settings.refreshInterval)) \(Strings.Settings.seconds)", value: $settings.refreshInterval, in: 1...30, step: 1)
                         }
                         .padding(.leading, 20)
                     }
-                    Toggle("Launch Porchlight at login", isOn: $settings.launchAtLogin)
+                    Toggle(Strings.Settings.launchAtLogin, isOn: $settings.launchAtLogin)
                     if let errorMessage = settings.errorMessage {
                         Text(errorMessage)
                             .font(.callout)
@@ -29,62 +29,62 @@ struct SettingsTabView: View {
                 }
             }
 
-            PreferenceRow(label: "Dock:") {
+            PreferenceRow(label: Strings.Settings.dock) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide app icon when all windows are closed", isOn: $settings.hideDockIcon)
-                    Text("Keep Porchlight out of the Dock when you're not using it.")
+                    Toggle(Strings.Settings.hideAppIcon, isOn: $settings.hideDockIcon)
+                    Text(Strings.Settings.keepOutOfDock)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            PreferenceRow(label: "Menu Bar:") {
+            PreferenceRow(label: Strings.Settings.menuBar) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide app icon when no servers are active", isOn: $settings.hideMenuIconWhenEmpty)
-                    Text("Keep Porchlight quiet until there is something useful to show.")
+                    Toggle(Strings.Settings.hideMenuIcon, isOn: $settings.hideMenuIconWhenEmpty)
+                    Text(Strings.Settings.menuBarDescription)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            PreferenceRow(label: "Groups:") {
+            PreferenceRow(label: Strings.Settings.groups) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Show automatic groups", isOn: $settings.showAutomaticGroups)
-                    Text("When disabled, only groups you create manually are shown.")
+                    Toggle(Strings.Settings.showAutomaticGroups, isOn: $settings.showAutomaticGroups)
+                    Text(Strings.Settings.automaticGroupsDescription)
                         .font(.callout)
                         .foregroundStyle(.secondary)
 
-                    Toggle("Show app services", isOn: $settings.showAppServices)
-                    Text("When disabled, hides background listeners from apps like Adobe Creative Cloud and Ableton.")
+                    Toggle(Strings.Settings.showAppServices, isOn: $settings.showAppServices)
+                    Text(Strings.Settings.appServicesDescription)
                         .font(.callout)
                         .foregroundStyle(.secondary)
 
-                    Toggle("Show icons", isOn: $settings.showGroupIcons)
-                    Text("When disabled, group icons won't be shown in the list.")
+                    Toggle(Strings.Settings.showIcons, isOn: $settings.showGroupIcons)
+                    Text(Strings.Settings.iconsDescription)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            PreferenceRow(label: "CLI:") {
+            PreferenceRow(label: Strings.Settings.cli) {
                 HStack {
-                    Text("Manage Porchlight from the Terminal.")
+                    Text(Strings.Settings.manageFromTerminal)
                     Spacer()
-                    Button("Show me how") { open(readmeURL) }
+                    Button(Strings.Settings.showMeHow) { open(readmeURL) }
                 }
             }
 
             Divider()
                 .padding(.vertical, 4)
 
-            PreferenceRow(label: "Reset:") {
+            PreferenceRow(label: Strings.Settings.reset) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Button("Reset Porchlight to Defaults", role: .destructive) {
+                    Button(Strings.Settings.resetButton, role: .destructive) {
                         isConfirmingReset = true
                     }
                     .disabled(isResetting)
 
-                    Text("Removes saved server history, pins, groups, classification rules, and settings.")
+                    Text(Strings.Settings.resetDescription)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -92,16 +92,16 @@ struct SettingsTabView: View {
         }
         .toggleStyle(.checkbox)
         .confirmationDialog(
-            "Reset Porchlight to defaults?",
+            Strings.Settings.resetConfirmation,
             isPresented: $isConfirmingReset,
             titleVisibility: .visible
         ) {
-            Button("Reset Porchlight", role: .destructive) {
+            Button(Strings.Settings.resetButton, role: .destructive) {
                 Task { await resetPorchlight() }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(Strings.Settings.cancel, role: .cancel) {}
         } message: {
-            Text("This removes saved server history, pins, groups, classification rules, and Porchlight settings.")
+            Text(Strings.Settings.resetConfirmationMessage)
         }
     }
 

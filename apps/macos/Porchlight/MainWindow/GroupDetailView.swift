@@ -24,23 +24,23 @@ struct GroupDetailView: View {
                     }
 
                     HStack(spacing: 8) {
-                        Button(summary?.hidden == true ? "Show Group Servers" : "Hide Group Servers") {
+                        Button(summary?.hidden == true ? Strings.GroupDetail.showGroupServers : Strings.GroupDetail.hideGroupServers) {
                             Task { await store.setGroupHidden(id: groupID, hidden: !(summary?.hidden ?? false)) }
                         }
 
-                        Button("Delete Group", role: .destructive) {
+                        Button(Strings.GroupDetail.deleteGroup, role: .destructive) {
                             store.deleteGroup(id: groupID)
                         }
                     }
 
                     Divider()
 
-                    DetailEditorRow(label: "Name") {
+                    DetailEditorRow(label: Strings.GroupDetail.nameLabel) {
                         TextField("Group name", text: name)
                             .textFieldStyle(.roundedBorder)
                     }
 
-                    DetailEditorRow(label: "Colour") {
+                    DetailEditorRow(label: Strings.GroupDetail.colourLabel) {
                         HStack(spacing: 10) {
                             Toggle("", isOn: colorEnabledBinding(color))
                                 .labelsHidden()
@@ -48,23 +48,23 @@ struct GroupDetailView: View {
                             if !color.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                 ColorPicker("", selection: colorBinding(color))
                                     .labelsHidden()
-                                TextField("#34C759", text: color)
+                                TextField(Strings.GroupDetail.colourPlaceholder, text: color)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(width: 100)
                             }
                         }
                     }
 
-                    DetailEditorRow(label: "Icon") {
+                    DetailEditorRow(label: Strings.GroupDetail.iconLabel) {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Toggle("", isOn: iconEnabledBinding(icon))
                                 .labelsHidden()
 
                             if icon.wrappedValue != nil {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    TextField("Auto-detect, /path/to/favicon.ico, or file:// URL", text: optionalStringBinding(icon))
+                                    TextField(Strings.GroupDetail.iconPlaceholder, text: optionalStringBinding(icon))
                                         .textFieldStyle(.roundedBorder)
-                                    Text("Leave blank to auto-detect common project favicons from matching working directories.")
+                                    Text(Strings.GroupDetail.iconHelpText)
                                         .font(.callout)
                                         .foregroundStyle(.secondary)
                                 }
@@ -72,9 +72,9 @@ struct GroupDetailView: View {
                         }
                     }
 
-                    DetailEditorRow(label: "Command Contains") {
+                    DetailEditorRow(label: Strings.GroupDetail.commandContainsLabel) {
                         ChipEditor(
-                            placeholder: "manage.py runserver",
+                            placeholder: Strings.GroupDetail.commandContainsPlaceholder,
                             text: $commandText,
                             values: group.commandContains,
                             add: { store.addCommand(commandText, to: groupID); commandText = "" },
@@ -82,9 +82,9 @@ struct GroupDetailView: View {
                         )
                     }
 
-                    DetailEditorRow(label: "Working Directory") {
+                    DetailEditorRow(label: Strings.GroupDetail.workingDirectoryLabel) {
                         ChipEditor(
-                            placeholder: "~/Developer/ausmusicfinder",
+                            placeholder: Strings.GroupDetail.workingDirectoryPlaceholder,
                             text: $directoryText,
                             values: group.workingDirectories,
                             add: { store.addWorkingDirectory(directoryText, to: groupID); directoryText = "" },
@@ -92,7 +92,7 @@ struct GroupDetailView: View {
                         )
                     }
 
-                    DetailEditorRow(label: "Priority") {
+                    DetailEditorRow(label: Strings.GroupDetail.priorityLabel) {
                         Stepper(value: priority, in: 0...1000, step: 10) {
                             Text(priority.wrappedValue.formatted())
                         }
@@ -194,16 +194,16 @@ struct AutomaticGroupDetailView: View {
 
                     Divider()
 
-                SummaryRow(label: "Kind", value: summary.kind ?? "Unknown")
-                SummaryRow(label: "Role", value: summary.role ?? "Service")
-                SummaryRow(label: "Active Servers", value: summary.activeServerCount.formatted())
-                SummaryRow(label: "Recent Servers", value: summary.recentServerCount.formatted())
-                SummaryRow(label: "Activations", value: summary.activeCount.formatted())
+                SummaryRow(label: Strings.GroupDetail.kind, value: summary.kind ?? Strings.GroupDetail.unknown)
+                SummaryRow(label: Strings.GroupDetail.role, value: summary.role ?? Strings.GroupDetail.service)
+                SummaryRow(label: Strings.GroupDetail.activeServers, value: summary.activeServerCount.formatted())
+                SummaryRow(label: Strings.GroupDetail.recentServers, value: summary.recentServerCount.formatted())
+                SummaryRow(label: Strings.GroupDetail.activations, value: summary.activeCount.formatted())
                 if let firstSeenText = summary.firstSeenText {
-                    SummaryRow(label: "First Seen", value: firstSeenText)
+                    SummaryRow(label: Strings.GroupDetail.firstSeen, value: firstSeenText)
                 }
                 if let lastSeenText = summary.lastSeenText {
-                    SummaryRow(label: "Last Seen", value: lastSeenText)
+                    SummaryRow(label: Strings.GroupDetail.lastSeen, value: lastSeenText)
                 }
                 SummaryRow(label: "Source", value: summary.reason ?? summary.source)
 

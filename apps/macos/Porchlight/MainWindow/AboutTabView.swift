@@ -15,34 +15,34 @@ struct AboutTabView: View {
                     .frame(width: 128, height: 128)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Porchlight")
+                    Text(Strings.About.appName)
                         .font(.title3.weight(.semibold))
 
                     Text("Version 0.1.0")
                         .foregroundStyle(.secondary)
 
-                    Text("Find the servers you left on.")
+                    Text(Strings.About.tagline)
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        LinkButton("Acknowledgements", url: repositoryURL)
-                        LinkButton("Privacy Policy", url: privacyURL)
-                        LinkButton("Terms of Use", url: termsURL)
+                        LinkButton(Strings.About.acknowledgementsLink, url: repositoryURL)
+                        LinkButton(Strings.About.privacyPolicyLink, url: privacyURL)
+                        LinkButton(Strings.About.termsOfUseLink, url: termsURL)
                     }
                     .padding(.top, 10)
 
-                    Button("Report an Issue...") { open(issuesURL) }
+                    Button(Strings.About.reportIssue) { open(issuesURL) }
                         .padding(.top, 10)
                 }
                 .frame(width: 210, alignment: .leading)
             }
 
             VStack(spacing: 12) {
-                Text("Porchlight runs locally and uses the bundled Rust CLI to inspect development servers.")
+                Text(Strings.About.description)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
 
-                Text("© 2026 Porchlight. All rights reserved.")
+                Text(Strings.About.copyright)
                     .foregroundStyle(.secondary)
             }
             .font(.callout)
