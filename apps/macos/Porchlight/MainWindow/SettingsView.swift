@@ -278,6 +278,7 @@ struct ServerListSectionHeader: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isRefreshing)
+                .padding(.trailing, 4)
             }
         }
     }
@@ -285,24 +286,13 @@ struct ServerListSectionHeader: View {
 
 struct RefreshIcon: View {
     let isRefreshing: Bool
-    @State private var rotation = 0.0
 
     var body: some View {
-        Image(systemName: "arrow.clockwise")
-            .rotationEffect(.degrees(rotation))
-            .onAppear(perform: updateRotation)
-            .onChange(of: isRefreshing) { _, _ in updateRotation() }
-    }
-
-    private func updateRotation() {
         if isRefreshing {
-            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-                rotation += 360
-            }
+            ProgressView()
+                .controlSize(.small)
         } else {
-            withAnimation(.linear(duration: 0.12)) {
-                rotation = 0
-            }
+            Image(systemName: "arrow.clockwise")
         }
     }
 }
