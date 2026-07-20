@@ -18,9 +18,28 @@ struct PorchlightCLI {
         return developmentPath
     }
 
-    func listServers() async throws -> [LocalServer] {
-        let data = try await run(arguments: ["list", "--json"])
+    func listServers(showAutomaticGroups: Bool = true) async throws -> [LocalServer] {
+        var arguments = ["list", "--json"]
+        if !showAutomaticGroups {
+            arguments.append("--no-auto-groups")
+        }
+
+        let data = try await run(arguments: arguments)
         return try JSONDecoder().decode(ServerListResponse.self, from: data).servers
+    }
+
+    func listGroups() async throws -> [ServerGroup] {
+        let data = try await run(arguments: ["groups", "list", "--json"])
+        return try JSONDecoder().decode(ServerGroupsDocument.self, from: data).groups
+    }
+
+    func replaceGroups(_ groups: [ServerGroup]) async throws {
+        let data = try JSONEncoder.porchlight.encode(ServerGroupsDocument(groups: groups))
+        _ = try await run(arguments: ["groups", "replace", "--stdin"], stdin: data)
+    }
+
+    func setAutomaticGroups(_ enabled: Bool) async throws {
+        _ = try await run(arguments: ["config", "set-auto-groups", enabled ? "true" : "false"])
     }
 
     func killServer(_ server: LocalServer) async throws {
@@ -39,7 +58,7 @@ struct PorchlightCLI {
         _ = try await run(arguments: ["unpin", server.id])
     }
 
-    private func run(arguments: [String]) async throws -> Data {
+    private func run(arguments: [String], stdin: Data? = nil) async throws -> Data {
         let executablePath = executablePath
 
         return try await Task.detached(priority: .userInitiated) {
@@ -60,7 +79,22 @@ struct PorchlightCLI {
             process.standardOutput = outputPipe
             process.standardError = errorPipe
 
+            let inputPipe: Pipe?
+            if stdin != nil {
+                let pipe = Pipe()
+                process.standardInput = pipe
+                inputPipe = pipe
+            } else {
+                inputPipe = nil
+            }
+
             try process.run()
+
+            if let stdin, let inputPipe {
+                inputPipe.fileHandleForWriting.write(stdin)
+                try inputPipe.fileHandleForWriting.close()
+            }
+
             process.waitUntilExit()
 
             let output = outputPipe.fileHandleForReading.readDataToEndOfFile()
@@ -75,6 +109,14 @@ struct PorchlightCLI {
         }
         .value
     }
+}
+
+extension JSONEncoder {
+    static let porchlight: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }()
 }
 
 enum PorchlightCLIError: LocalizedError {

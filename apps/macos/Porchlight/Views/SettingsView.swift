@@ -33,7 +33,7 @@ struct SettingsView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task {
-            groupStore.load()
+            await groupStore.load()
             await viewModel.refresh()
         }
         .onAppear {
@@ -298,6 +298,15 @@ struct SettingsView: View {
                 }
             }
 
+            PreferenceRow(label: "Groups:") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Show automatic groups", isOn: $settings.showAutomaticGroups)
+                    Text("When disabled, only groups you create manually are shown.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             PreferenceRow(label: "CLI:") {
                 HStack {
                     Text("Manage Porchlight from the Terminal.")
@@ -457,8 +466,8 @@ private struct LinkButton: View {
         LocalServer(
             id: "1", port: 3000, pid: 1234, status: .active,
             processName: "node", serverType: "Next.js",
-            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF", icon: nil),
             icon: nil,
+            group: ServerGroupMatch(id: "myapp", name: "Myapp", kind: "Next.js", role: "Frontend", color: "#007AFF", icon: nil, confidence: 1, source: "manual group"),
             command: "next dev",
             workingDirectory: "/Users/tyler/Developer/myapp",
             displayDirectory: "~/Developer/myapp",
@@ -468,8 +477,8 @@ private struct LinkButton: View {
         LocalServer(
             id: "2", port: 8000, pid: 5678, status: .recent,
             processName: "python", serverType: "Django",
-            group: nil,
             icon: nil,
+            group: nil,
             command: "python manage.py runserver",
             workingDirectory: "/Users/tyler/Developer/backend",
             displayDirectory: "~/Developer/backend",

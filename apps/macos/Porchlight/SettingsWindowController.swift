@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let settings: AppSettings
-    private let viewModel = ServerListViewModel()
+    private lazy var viewModel = ServerListViewModel(settings: settings)
     private var window: NSWindow?
 
     var isWindowVisible: Bool {

@@ -33,10 +33,10 @@ struct ServerDetailView: View {
                             Text("•")
                                 .foregroundStyle(.tertiary)
                             HStack(spacing: 4) {
-                                GroupIconView(icon: server.icon ?? group.icon, color: group.color, size: 12)
+                                GroupIconView(icon: server.icon ?? group.icon, color: group.color ?? "#8E8E93", size: 12)
                                 Text(group.name)
                             }
-                            .foregroundStyle(Color(hex: group.color))
+                            .foregroundStyle(Color(hex: group.color ?? "#8E8E93"))
                         } else if server.icon != nil {
                             GroupIconView(icon: server.icon, color: "#8E8E93", size: 12)
                         }
@@ -84,6 +84,7 @@ struct ServerDetailView: View {
                 DetailRow(label: "Status", value: server.status.rawValue.capitalized)
                 if let group = server.group {
                     DetailRow(label: "Group", value: group.name)
+                    DetailRow(label: "Group Kind", value: "\(group.kind) • \(group.role)")
                 }
                 DetailRow(label: "URL", value: server.url)
                 DetailRow(label: "Process", value: "pid \(server.pid) • \(server.processName)")
@@ -138,8 +139,8 @@ struct DetailRow: View {
         server: LocalServer(
             id: "1", port: 3000, pid: 1234, status: .active,
             processName: "node", serverType: "Next.js",
-            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF", icon: nil),
             icon: nil,
+            group: ServerGroupMatch(id: "myapp", name: "Myapp", kind: "Next.js", role: "Frontend", color: "#007AFF", icon: nil, confidence: 1, source: "manual group"),
             command: "next dev",
             workingDirectory: "/Users/tyler/Developer/myapp",
             displayDirectory: "~/Developer/myapp",
@@ -156,8 +157,8 @@ struct DetailRow: View {
         server: LocalServer(
             id: "2", port: 8000, pid: 5678, status: .recent,
             processName: "python", serverType: "Django",
-            group: nil,
             icon: nil,
+            group: nil,
             command: "python manage.py runserver",
             workingDirectory: nil,
             displayDirectory: nil,

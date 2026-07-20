@@ -11,8 +11,8 @@ struct LocalServer: Decodable, Identifiable, Hashable {
     let status: ServerStatus
     let processName: String
     let serverType: String
-    let group: ServerGroupMatch?
     let icon: String?
+    let group: ServerGroupMatch?
     let command: String
     let workingDirectory: String?
     let displayDirectory: String?
@@ -28,8 +28,8 @@ struct LocalServer: Decodable, Identifiable, Hashable {
         case status
         case processName = "process_name"
         case serverType = "server_type"
-        case group
         case icon
+        case group
         case command
         case workingDirectory = "working_directory"
         case displayDirectory = "display_directory"
@@ -76,6 +76,17 @@ struct LocalServer: Decodable, Identifiable, Hashable {
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: workingDirectory)) ?? []
         return contents.contains { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }
     }
+}
+
+struct ServerGroupMatch: Codable, Hashable {
+    let id: String
+    let name: String
+    let kind: String
+    let role: String
+    let color: String?
+    let icon: String?
+    let confidence: Double
+    let source: String
 }
 
 private extension ISO8601DateFormatter {

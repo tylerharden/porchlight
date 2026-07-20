@@ -73,7 +73,7 @@ final class StatusBarController: NSObject {
 
     private func loadServers() async -> String? {
         do {
-            servers = try await cli.listServers()
+            servers = try await cli.listServers(showAutomaticGroups: settings.showAutomaticGroups)
             statusItem.button?.image = PorchlightStatusIcon.image(isActive: servers.contains { $0.isActive })
             applyMenuVisibility()
             return nil
@@ -180,7 +180,7 @@ final class StatusBarController: NSObject {
             string: group.name,
             attributes: [
                 .font: NSFont.menuFont(ofSize: 11),
-                .foregroundColor: NSColor(hex: group.color) ?? NSColor.secondaryLabelColor
+                .foregroundColor: NSColor(hex: group.color ?? "") ?? NSColor.secondaryLabelColor
             ]
         )
         return item

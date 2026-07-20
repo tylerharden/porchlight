@@ -24,7 +24,7 @@ struct ServerRowView: View {
                 .foregroundStyle(.secondary)
 
             if let group = server.group {
-                GroupIconView(icon: server.icon ?? group.icon, color: group.color, size: 8)
+                GroupIconView(icon: server.icon ?? group.icon, color: group.color ?? "#8E8E93", size: 8)
 
                 Text(group.name)
                     .font(.caption)
@@ -50,8 +50,8 @@ struct ServerRowView: View {
         ServerRowView(server: LocalServer(
             id: "1", port: 3000, pid: 1234, status: .active,
             processName: "node", serverType: "Next.js",
-            group: ServerGroupMatch(id: "g1", name: "Frontend", color: "#007AFF", icon: nil),
             icon: nil,
+            group: ServerGroupMatch(id: "myapp", name: "Myapp", kind: "Next.js", role: "Frontend", color: "#007AFF", icon: nil, confidence: 1, source: "manual group"),
             command: "next dev",
             workingDirectory: "/Users/tyler/Developer/myapp",
             displayDirectory: "~/Developer/myapp",
@@ -65,8 +65,8 @@ struct ServerRowView: View {
         ServerRowView(server: LocalServer(
             id: "2", port: 8000, pid: 5678, status: .recent,
             processName: "python", serverType: "Django",
-            group: nil,
             icon: nil,
+            group: nil,
             command: "python manage.py runserver",
             workingDirectory: "/Users/tyler/Developer/backend",
             displayDirectory: "~/Developer/backend",

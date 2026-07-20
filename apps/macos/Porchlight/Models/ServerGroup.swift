@@ -3,6 +3,24 @@ import SwiftUI
 
 struct ServerGroupsDocument: Codable {
     var groups: [ServerGroup]
+
+    enum CodingKeys: String, CodingKey {
+        case groups
+    }
+
+    init(groups: [ServerGroup]) {
+        self.groups = groups
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        groups = try container.decodeIfPresent([ServerGroup].self, forKey: .groups) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(groups, forKey: .groups)
+    }
 }
 
 struct ServerGroup: Codable, Identifiable, Hashable {
@@ -37,33 +55,15 @@ struct ServerGroup: Codable, Identifiable, Hashable {
     }
 }
 
-struct ServerGroupMatch: Codable, Hashable {
-    let id: String
-    let name: String
-    let color: String
-    let icon: String?
-}
-
 @MainActor
 @Observable
 final class ServerGroupStore {
     var groups: [ServerGroup] = []
     var errorMessage: String?
 
-    private var groupsURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".config")
-            .appending(path: "porchlight")
-            .appending(path: "groups.json")
-    }
-
-    func load() {
-        let url = groupsURL
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
-
+    func load() async {
         do {
-            let data = try Data(contentsOf: url)
-            groups = try JSONDecoder().decode(ServerGroupsDocument.self, from: data).groups
+            groups = try await PorchlightCLI().listGroups()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -130,14 +130,14 @@ final class ServerGroupStore {
     }
 
     private func save() {
-        do {
-            let url = groupsURL
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let data = try JSONEncoder.porchlight.encode(ServerGroupsDocument(groups: groups))
-            try data.write(to: url, options: .atomic)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+        let groups = groups
+        Task {
+            do {
+                try await PorchlightCLI().replaceGroups(groups)
+                errorMessage = nil
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
@@ -169,12 +169,4 @@ extension Color {
             Int(round(color.blueComponent * 255))
         )
     }
-}
-
-private extension JSONEncoder {
-    static let porchlight: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }()
 }

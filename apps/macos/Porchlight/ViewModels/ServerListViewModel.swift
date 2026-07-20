@@ -5,6 +5,7 @@ import Foundation
 @Observable
 final class ServerListViewModel {
     private let cli = PorchlightCLI()
+    private let settings: AppSettings?
     private var hasStarted = false
 
     var servers: [LocalServer] = []
@@ -13,6 +14,10 @@ final class ServerListViewModel {
     var killingServerIDs: Set<String> = []
     var startingServerIDs: Set<String> = []
     var lastRefreshedAt: Date?
+
+    init(settings: AppSettings? = nil) {
+        self.settings = settings
+    }
 
     var hasActiveServers: Bool {
         servers.contains { $0.isActive }
@@ -40,7 +45,7 @@ final class ServerListViewModel {
         defer { isRefreshing = false }
 
         do {
-            servers = try await cli.listServers()
+            servers = try await cli.listServers(showAutomaticGroups: settings?.showAutomaticGroups ?? true)
             errorMessage = nil
             lastRefreshedAt = Date()
         } catch {

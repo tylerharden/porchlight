@@ -26,6 +26,13 @@ final class AppSettings {
         didSet { persistAndNotify("hideMenuIconWhenEmpty", hideMenuIconWhenEmpty) }
     }
 
+    var showAutomaticGroups: Bool {
+        didSet {
+            persistAndNotify("showAutomaticGroups", showAutomaticGroups)
+            persistAutomaticGroupsToCLI()
+        }
+    }
+
     var errorMessage: String?
 
     init(defaults: UserDefaults = .standard) {
@@ -33,6 +40,7 @@ final class AppSettings {
         refreshInterval = defaults.object(forKey: "refreshInterval") as? Double ?? 2
         hideDockIcon = defaults.object(forKey: "hideDockIcon") as? Bool ?? true
         hideMenuIconWhenEmpty = defaults.object(forKey: "hideMenuIconWhenEmpty") as? Bool ?? false
+        showAutomaticGroups = defaults.object(forKey: "showAutomaticGroups") as? Bool ?? true
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
@@ -63,5 +71,17 @@ final class AppSettings {
 
     private func notifyChanged() {
         NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
+    }
+
+    private func persistAutomaticGroupsToCLI() {
+        let showAutomaticGroups = showAutomaticGroups
+        Task {
+            do {
+                try await PorchlightCLI().setAutomaticGroups(showAutomaticGroups)
+                errorMessage = nil
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }
