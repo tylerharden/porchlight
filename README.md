@@ -57,15 +57,19 @@ porchlight/
   apps/
     macos/
       README.md
+      Porchlight.icon/
       Porchlight.xcodeproj/
       Porchlight/
-        AppDelegate.swift
-        StatusBarController.swift
-        SettingsWindowController.swift
+        App/
+        Assets/
+        Extensions/
+        MainWindow/
+        MenuBar/
         Models/
         Services/
+        SharedViews/
         ViewModels/
-        Views/
+      PorchlightTests/
 ```
 
 ## CLI
@@ -104,19 +108,26 @@ cd apps/macos
 DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" xcodebuild -project "Porchlight.xcodeproj" -scheme "Porchlight" -configuration Debug build
 ```
 
+Run tests with Xcode beta:
+
+```bash
+cd apps/macos
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" xcodebuild test -project "Porchlight.xcodeproj" -scheme "Porchlight" -configuration Debug -destination "platform=macOS"
+```
+
 The Xcode build bundles the Rust CLI into:
 
 ```text
 Porchlight.app/Contents/Resources/porchlight
 ```
 
-During development, the app prefers the local debug CLI when available:
+During development, the app resolves the CLI in this order:
 
-```text
-/Users/tyler/Developer/porchlight/cli/target/debug/porchlight
-```
+1. `PORCHLIGHT_CLI_PATH`, if set.
+2. Bundled app resource named `porchlight`.
+3. Local development binary at `~/Developer/porchlight/cli/target/debug/porchlight`.
 
-Override the CLI path with `PORCHLIGHT_CLI_PATH`.
+The shared GitHub Actions workflow runs `cargo test -j 1` for the CLI and `xcodebuild test` for the macOS app.
 
 See `apps/macos/README.md` for macOS app details.
 
