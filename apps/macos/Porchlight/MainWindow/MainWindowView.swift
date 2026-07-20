@@ -58,23 +58,6 @@ struct MainWindowView: View {
 
 }
 
-struct ServerGroupHeaderView: View {
-    let group: ServerGroupMatch
-    let showIcon: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            if showIcon {
-                GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
-            }
-            Text(group.name)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(Color(hex: group.color ?? "#8E8E93"))
-        }
-        .textCase(nil)
-    }
-}
-
 struct ServerListSectionHeader: View {
     let title: String
     let isRefreshing: Bool
@@ -82,6 +65,8 @@ struct ServerListSectionHeader: View {
     let refresh: (() -> Void)?
     var trailingAction: (() -> Void)?
     var trailingActionIcon: String = "plus"
+    var groupIcon: String?
+    var groupColor: String?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -99,9 +84,13 @@ struct ServerListSectionHeader: View {
                 .foregroundStyle(.secondary)
             }
 
+            if let groupIcon {
+                GroupIconView(icon: groupIcon, color: groupColor ?? "#8E8E93", size: 10)
+            }
+
             Text(title)
                 .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(groupColor.map { Color(hex: $0) } ?? .secondary)
 
             Spacer()
 

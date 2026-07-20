@@ -39,7 +39,13 @@ struct ServerListView: View {
                             }
                         } header: {
                             if let group = section.group {
-                                ServerGroupHeaderView(group: group, showIcon: showGroupIcons)
+                                ServerListSectionHeader(
+                                    title: group.name,
+                                    isRefreshing: false,
+                                    refresh: nil,
+                                    groupIcon: showGroupIcons ? group.icon : nil,
+                                    groupColor: group.color
+                                )
                             }
                         }
                         .listSectionSeparator(.hidden)
