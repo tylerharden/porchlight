@@ -181,7 +181,7 @@ struct AutomaticGroupDetailView: View {
                         }
                         .disabled(isTogglingHidden)
 
-                        Button("Customize") {
+                        Button(Strings.customise) {
                             guard !isCustomizing else { return }
                             isCustomizing = true
                             Task {
@@ -191,10 +191,6 @@ struct AutomaticGroupDetailView: View {
                         }
                         .disabled(isCustomizing)
                     }
-
-                    Text("Customize saves this discovered group as a manual group, then lets you edit its name, colour, icon, and match rules.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
 
                     Divider()
 
