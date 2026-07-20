@@ -155,7 +155,7 @@ struct DetailRow: View {
             icon: nil,
             group: ServerGroupMatch(id: "myapp", name: "Myapp", kind: "Next.js", role: "Frontend", color: "#007AFF", icon: nil, confidence: 1, source: "manual group"),
             command: "next dev",
-            workingDirectory: "/Users/tyler/Developer/myapp",
+            workingDirectory: "/tmp/myapp",
             displayDirectory: "~/Developer/myapp",
             url: "http://localhost:3000",
             pinned: true, lastSeenAt: nil, startCommand: "npm run dev"

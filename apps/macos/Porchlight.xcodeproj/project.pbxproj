@@ -10,12 +10,28 @@
 		2F6E91943008EA8A005D5BB0 /* Porchlight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2F6E91803008EA8A005D5BB0 /* Porchlight.icon */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		000000000000000260000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = Porchlight;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Porchlight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Porchlight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000220 /* PorchlightTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PorchlightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F6E91803008EA8A005D5BB0 /* Porchlight.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Porchlight.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		000000000000000000000221 /* PorchlightTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PorchlightTests;
+			sourceTree = "<group>";
+		};
 		2F6E913C3008E96F005D5BB0 /* Porchlight */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Porchlight;
@@ -29,6 +45,11 @@
 			files = (
 			);
 		};
+		000000000000000230000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -37,6 +58,7 @@
 			children = (
 				2F6E91803008EA8A005D5BB0 /* Porchlight.icon */,
 				2F6E913C3008E96F005D5BB0 /* Porchlight */,
+				000000000000000000000221 /* PorchlightTests */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -45,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* Porchlight.app */,
+				000000000000000000000220 /* PorchlightTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -71,6 +94,27 @@
 			productReference = 000000000000000000000120 /* Porchlight.app */;
 			productType = "com.apple.product-type.application";
 		};
+		000000000000000200000000 /* PorchlightTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000210000000 /* Build configuration list for PBXNativeTarget "PorchlightTests" */;
+			buildPhases = (
+				000000000000000220000000 /* Sources */,
+				000000000000000230000000 /* Frameworks */,
+				000000000000000240000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				000000000000000250000000 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				000000000000000000000221 /* PorchlightTests */,
+			);
+			name = PorchlightTests;
+			productName = PorchlightTests;
+			productReference = 000000000000000000000220 /* PorchlightTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -83,6 +127,10 @@
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					000000000000000200000000 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 000000000000000100000000;
 					};
 				};
 			};
@@ -101,6 +149,7 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* Porchlight */,
+				000000000000000200000000 /* PorchlightTests */,
 			);
 		};
 /* End PBXProject section */
@@ -110,6 +159,11 @@
 			isa = PBXResourcesBuildPhase;
 			files = (
 				2F6E91943008EA8A005D5BB0 /* Porchlight.icon in Resources */,
+			);
+		};
+		000000000000000240000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -141,7 +195,20 @@
 			files = (
 			);
 		};
+		000000000000000220000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		000000000000000250000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* Porchlight */;
+			targetProxy = 000000000000000260000000 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "Porchlight" */ = {
@@ -366,6 +433,54 @@
 			};
 			name = Release;
 		};
+		000000000000000211000000 /* Debug configuration for PBXNativeTarget "PorchlightTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TLFCRD5283;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlightTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 5;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Porchlight.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Porchlight";
+			};
+			name = Debug;
+		};
+		000000000000000212000000 /* Release configuration for PBXNativeTarget "PorchlightTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TLFCRD5283;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlightTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 5;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Porchlight.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Porchlight";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -382,6 +497,14 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Porchlight" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "Porchlight" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		000000000000000210000000 /* Build configuration list for PBXNativeTarget "PorchlightTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000211000000 /* Debug configuration for PBXNativeTarget "PorchlightTests" */,
+				000000000000000212000000 /* Release configuration for PBXNativeTarget "PorchlightTests" */,
 			);
 			defaultConfigurationName = Release;
 		};

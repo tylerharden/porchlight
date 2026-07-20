@@ -10,7 +10,9 @@ struct PorchlightCLI {
             return bundledPath
         }
 
-        let developmentPath = "/Users/tyler/Developer/porchlight/cli/target/debug/porchlight"
+        let developmentPath = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Developer/porchlight/cli/target/debug/porchlight")
+            .path
         if FileManager.default.isExecutableFile(atPath: developmentPath) {
             return developmentPath
         }

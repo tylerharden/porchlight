@@ -7,14 +7,18 @@ The macOS app is a native AppKit/SwiftUI shell over the Rust CLI.
 ```text
 apps/macos/
   Porchlight.xcodeproj
+  Porchlight.icon
   Porchlight/
-    AppDelegate.swift
-    StatusBarController.swift
-    SettingsWindowController.swift
+    App/
+    Assets/
+    Extensions/
+    MainWindow/
+    MenuBar/
     Models/
     Services/
+    SharedViews/
     ViewModels/
-    Views/
+  PorchlightTests/
 ```
 
 This is an Xcode project, not a SwiftPM app.
@@ -24,6 +28,14 @@ This is an Xcode project, not a SwiftPM app.
 ```bash
 DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" xcodebuild -project "Porchlight.xcodeproj" -scheme "Porchlight" -configuration Debug build
 ```
+
+## Test
+
+```bash
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" xcodebuild test -project "Porchlight.xcodeproj" -scheme "Porchlight" -configuration Debug -destination "platform=macOS"
+```
+
+The shared `Porchlight` scheme includes the `PorchlightTests` unit test target.
 
 The build phase `Bundle porchlight CLI` builds the Rust CLI and copies it into the app bundle:
 
@@ -36,8 +48,8 @@ Porchlight.app/Contents/Resources/porchlight
 The app resolves the CLI in this order:
 
 1. `PORCHLIGHT_CLI_PATH`, if set.
-2. Local development binary at `/Users/tyler/Developer/porchlight/cli/target/debug/porchlight`.
-3. Bundled app resource named `porchlight`.
+2. Bundled app resource named `porchlight`.
+3. Local development binary at `~/Developer/porchlight/cli/target/debug/porchlight`.
 
 ## App Behavior
 
@@ -57,6 +69,7 @@ Each server menu item includes:
 - status dot
 - port
 - inferred server type
+- group color and icon, when matched
 - submenu actions
 
 Available actions include:
@@ -69,9 +82,12 @@ Available actions include:
 - kill
 - kill and remove
 - start, when a start command exists
+- hide/show
 - remove
 
-Servers that match a user Group are sectioned under a small disabled group header. The header uses the colour chosen for the Group. Active and inactive/recent servers are grouped until removed.
+Servers that match a user Group are sectioned under a disabled group header. The header uses the colour and icon chosen for the Group. Active and inactive/recent servers are grouped until removed.
+
+Hidden servers are excluded from the main active/recent sections and collected under a collapsed `Show Hidden` section.
 
 ## Main Window
 
@@ -91,14 +107,25 @@ Servers uses `NavigationSplitView` with:
 - native swipe actions
 - human-readable relative `Last Seen`
 - Open, Open in Finder, Open in App, Turn On/Off, Pin/Unpin, and Remove actions
+- visible loading states while server data refreshes
 
 Groups uses `NavigationSplitView` with:
 
 - native list/sidebar of user Groups
 - `+` button to create an empty Group
 - detail editor for name, colour, command chips, working-directory chips, and priority
+- manual and automatic group toggles
+- top-level delete/save actions in the detail pane
+
+Settings uses native SwiftUI controls for app preferences and server visibility management.
 
 The sidebar toggle is removed from split views so the sidebars stay visible in the app UI.
+
+## Previews
+
+SwiftUI previews use `SharedViews/PreviewSupport.swift` for reusable sample data and AppKit menu item preview wrappers.
+
+Previews are available for shared views, menu bar rows, server rows, group detail, and settings views.
 
 ## User Data
 

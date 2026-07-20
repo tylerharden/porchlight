@@ -1,7 +1,4 @@
 {
-  "features" : [
-    "refractivity"
-  ],
   "fill" : {
     "solid" : "display-p3:0.52432,0.58518,0.74177,1.00000"
   },
@@ -33,7 +30,7 @@
       },
       "refractivity" : {
         "depth" : 0,
-        "enabled" : true,
+        "enabled" : false,
         "strength" : 0.5
       },
       "shadow" : {

@@ -84,7 +84,7 @@ struct GroupDetailView: View {
 
                     DetailEditorRow(label: "Working Directory") {
                         ChipEditor(
-                            placeholder: "/Users/tyler/Developer/ausmusicfinder",
+                            placeholder: "~/Developer/ausmusicfinder",
                             text: $directoryText,
                             values: group.workingDirectories,
                             add: { store.addWorkingDirectory(directoryText, to: groupID); directoryText = "" },
@@ -319,7 +319,7 @@ struct DetailEditorRow<Content: View>: View {
             id: "g1", name: "Frontend", color: "#007AFF",
             icon: nil,
             commandContains: ["next dev", "vite"],
-            workingDirectories: ["/Users/tyler/Developer/myapp"],
+            workingDirectories: ["~/Developer/myapp"],
             priority: 100
         )
     ]
