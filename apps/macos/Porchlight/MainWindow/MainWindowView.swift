@@ -18,7 +18,8 @@ struct MainWindowView: View {
             case .servers:
                 ServerListView(
                     viewModel: viewModel,
-                    selectedServerID: $selectedServerID
+                    selectedServerID: $selectedServerID,
+                    showGroupIcons: settings.showGroupIcons
                 )
             case .groups:
                 GroupsListView(

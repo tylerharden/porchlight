@@ -5,6 +5,7 @@ struct ServerListView: View {
     @Bindable var viewModel: ServerListViewModel
     @Binding var selectedServerID: LocalServer.ID?
     @State private var isShowingHiddenServers = false
+    let showGroupIcons: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,7 +81,7 @@ struct ServerListView: View {
                     if viewModel.isLoadingInitialServers {
                         CompactLoadingState(title: "Loading Details")
                     } else if let selectedServer {
-                        ServerDetailView(server: selectedServer, viewModel: viewModel)
+                        ServerDetailView(server: selectedServer, viewModel: viewModel, showGroupIcons: showGroupIcons)
                     } else {
                         CompactEmptyState(
                             title: "Select a Server",
@@ -115,7 +116,8 @@ struct ServerListView: View {
         ServerRowView(
             server: server,
             isStarting: viewModel.startingServerIDs.contains(server.id),
-            showsGroup: showsGroup
+            showsGroup: showsGroup,
+            showGroupIcons: showGroupIcons
         )
             .tag(server.id)
             .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -170,6 +172,7 @@ struct ServerListView: View {
 #Preview {
     ServerListView(
         viewModel: ServerListViewModel(),
-        selectedServerID: .constant(nil)
+        selectedServerID: .constant(nil),
+        showGroupIcons: true
     )
 }

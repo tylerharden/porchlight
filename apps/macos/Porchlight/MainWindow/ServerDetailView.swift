@@ -3,6 +3,7 @@ import SwiftUI
 struct ServerDetailView: View {
     let server: LocalServer
     let viewModel: ServerListViewModel
+    let showGroupIcons: Bool
 
     var body: some View {
         ScrollView {
@@ -29,7 +30,7 @@ struct ServerDetailView: View {
                     HStack(spacing: 6) {
                         Text(server.serverType)
                             .foregroundStyle(.secondary)
-                        if let group = server.group {
+                        if let group = server.group, showGroupIcons {
                             Text("•")
                                 .foregroundStyle(.tertiary)
                             HStack(spacing: 4) {
@@ -37,7 +38,7 @@ struct ServerDetailView: View {
                                 Text(group.name)
                             }
                             .foregroundStyle(Color(hex: group.color ?? "#8E8E93"))
-                        } else if server.icon != nil {
+                        } else if server.icon != nil, showGroupIcons {
                             GroupIconView(icon: server.icon, color: "#8E8E93", size: 12)
                         }
                     }
@@ -156,29 +157,31 @@ struct DetailRow: View {
             group: ServerGroupMatch(id: "myapp", name: "Myapp", kind: "Next.js", role: "Frontend", color: "#007AFF", icon: nil, confidence: 1, source: "manual group"),
             command: "next dev",
             workingDirectory: "/tmp/myapp",
-            displayDirectory: "~/Developer/myapp",
-            url: "http://localhost:3000",
-            pinned: true, lastSeenAt: nil, startCommand: "npm run dev"
-        ),
-        viewModel: ServerListViewModel()
-    )
-    .frame(width: 460, height: 380)
-}
-
-#Preview("Inactive server") {
-    ServerDetailView(
-        server: LocalServer(
-            id: "2", port: 8000, pid: 5678, status: .recent,
-            processName: "python", serverType: "Django",
-            icon: nil,
-            group: nil,
-            command: "python manage.py runserver",
-            workingDirectory: nil,
-            displayDirectory: nil,
-            url: "http://localhost:8000",
-            pinned: false, lastSeenAt: "2026-07-16T10:00:00Z", startCommand: nil
-        ),
-        viewModel: ServerListViewModel()
-    )
-    .frame(width: 460, height: 380)
-}
+             displayDirectory: "~/Developer/myapp",
+             url: "http://localhost:3000",
+             pinned: true, lastSeenAt: nil, startCommand: "npm run dev"
+         ),
+         viewModel: ServerListViewModel(),
+         showGroupIcons: true
+     )
+     .frame(width: 460, height: 380)
+ }
+ 
+ #Preview("Inactive server") {
+     ServerDetailView(
+         server: LocalServer(
+             id: "2", port: 8000, pid: 5678, status: .recent,
+             processName: "python", serverType: "Django",
+             icon: nil,
+             group: nil,
+             command: "python manage.py runserver",
+             workingDirectory: nil,
+             displayDirectory: nil,
+             url: "http://localhost:8000",
+             pinned: false, lastSeenAt: "2026-07-16T10:00:00Z", startCommand: nil
+         ),
+         viewModel: ServerListViewModel(),
+         showGroupIcons: true
+     )
+     .frame(width: 460, height: 380)
+ }

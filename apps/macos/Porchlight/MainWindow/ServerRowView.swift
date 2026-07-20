@@ -4,6 +4,7 @@ struct ServerRowView: View {
     let server: LocalServer
     var isStarting = false
     var showsGroup = true
+    var showGroupIcons = true
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -30,11 +31,9 @@ struct ServerRowView: View {
                 }
 
                 HStack(spacing: 5) {
-                    if showsGroup, let group = server.group {
-                        GroupIconView(icon: server.icon ?? group.icon, color: group.color ?? "#8E8E93", size: 8)
-
+                    if showsGroup, let group = server.group, showGroupIcons {
                         Text(group.name)
-                    } else if server.icon != nil {
+                    } else if server.group == nil, server.icon != nil, showGroupIcons {
                         GroupIconView(icon: server.icon, color: "#8E8E93", size: 8)
                     }
 
