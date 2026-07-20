@@ -32,6 +32,9 @@ enum Commands {
         /// Hide automatically inferred groups. User-defined groups still apply.
         #[arg(long = "no-auto-groups")]
         no_auto_groups: bool,
+        /// Hide application/background services from app bundles.
+        #[arg(long = "no-app-services")]
+        no_app_services: bool,
     },
     /// Show configuration.
     Config {
@@ -91,6 +94,11 @@ enum ConfigCommands {
     /// Persist whether automatic groups should be shown by default.
     SetAutoGroups {
         /// true to show automatic groups, false to hide them.
+        value: String,
+    },
+    /// Persist whether application/background services should be shown by default.
+    SetAppServices {
+        /// true to show app services, false to hide them.
         value: String,
     },
     /// Persist optional time-based recent server expiry. Use "off" for count-only history.
@@ -320,18 +328,23 @@ fn run() -> Result<(), PorchlightError> {
     match cli.command.unwrap_or(Commands::List {
         json: false,
         no_auto_groups: false,
+        no_app_services: false,
     }) {
         Commands::List {
             json,
             no_auto_groups,
+            no_app_services,
         } => {
             if no_auto_groups {
                 config.show_automatic_groups = false;
             }
+            if no_app_services {
+                config.show_app_services = false;
+            }
             let active_servers = scanner::scan(&config)?;
             let mut state = state::AppState::load()?;
             let servers = state.merge_servers(active_servers, &config);
-            let servers = state.visible_servers(servers);
+            let servers = state.visible_servers(servers, &config);
             state.save()?;
 
             if json {
@@ -368,6 +381,14 @@ fn run() -> Result<(), PorchlightError> {
                 println!(
                     "Automatic groups {} by default.",
                     if value { "enabled" } else { "disabled" }
+                );
+            }
+            ConfigCommands::SetAppServices { value } => {
+                let value = parse_bool(&value)?;
+                Config::set_show_app_services(value)?;
+                println!(
+                    "Application services {} by default.",
+                    if value { "shown" } else { "hidden" }
                 );
             }
             ConfigCommands::SetRecentTtl { value } => {
@@ -720,6 +741,7 @@ fn current_servers_and_state(
     let mut state = state::AppState::load()?;
     let servers = state.merge_servers(active_servers, config);
     state.save()?;
+    let servers = state.visible_servers(servers, config);
     Ok((servers, state))
 }
 
@@ -738,6 +760,10 @@ fn group_summary(config: &Config) -> Result<Vec<GroupSummary>, PorchlightError> 
     }
 
     for stats in state.group_stats.into_values() {
+        if !config.show_app_services && stats.kind == "Application Service" {
+            continue;
+        }
+
         let summary = summaries
             .entry(stats.id.clone())
             .or_insert_with(|| GroupSummary::automatic(stats.id.clone(), stats.name.clone()));

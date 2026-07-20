@@ -45,7 +45,10 @@ final class ServerListViewModel {
         defer { isRefreshing = false }
 
         do {
-            servers = try await cli.listServers(showAutomaticGroups: settings?.showAutomaticGroups ?? true)
+            servers = try await cli.listServers(
+                showAutomaticGroups: settings?.showAutomaticGroups ?? true,
+                showAppServices: settings?.showAppServices ?? true
+            )
             errorMessage = nil
             lastRefreshedAt = Date()
         } catch {

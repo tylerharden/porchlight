@@ -34,6 +34,13 @@ final class AppSettings {
         }
     }
 
+    var showAppServices: Bool {
+        didSet {
+            persistAndNotify("showAppServices", showAppServices)
+            persistAppServicesToCLI()
+        }
+    }
+
     var errorMessage: String?
 
     init(defaults: UserDefaults = .standard) {
@@ -42,6 +49,7 @@ final class AppSettings {
         hideDockIcon = defaults.object(forKey: "hideDockIcon") as? Bool ?? true
         hideMenuIconWhenEmpty = defaults.object(forKey: "hideMenuIconWhenEmpty") as? Bool ?? false
         showAutomaticGroups = defaults.object(forKey: "showAutomaticGroups") as? Bool ?? true
+        showAppServices = defaults.object(forKey: "showAppServices") as? Bool ?? true
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
@@ -92,6 +100,20 @@ final class AppSettings {
         }
     }
 
+    private func persistAppServicesToCLI() {
+        guard !isResetting else { return }
+
+        let showAppServices = showAppServices
+        Task {
+            do {
+                try await PorchlightCLI().setAppServices(showAppServices)
+                errorMessage = nil
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     func resetToDefaults() async {
         do {
             try await PorchlightCLI().reset()
@@ -104,6 +126,7 @@ final class AppSettings {
             hideDockIcon = true
             hideMenuIconWhenEmpty = false
             showAutomaticGroups = true
+            showAppServices = true
             isResetting = false
 
             [
@@ -112,6 +135,7 @@ final class AppSettings {
                 "hideDockIcon",
                 "hideMenuIconWhenEmpty",
                 "showAutomaticGroups",
+                "showAppServices",
             ].forEach { UserDefaults.standard.removeObject(forKey: $0) }
 
             errorMessage = nil

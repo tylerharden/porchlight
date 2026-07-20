@@ -8,6 +8,7 @@ The Porchlight CLI is the source of truth for local server discovery, server sta
 porchlight list
 porchlight list --json
 porchlight list --json --no-auto-groups
+porchlight list --json --no-app-services
 porchlight tui
 porchlight groups list
 porchlight groups add Frontend --command vite --command npm --color "#7C5CFF" --icon ~/Developer/app/public/favicon.ico --priority 10
@@ -19,6 +20,7 @@ porchlight groups hide meter-data-tool-poc
 porchlight groups unhide meter-data-tool-poc
 porchlight config show
 porchlight config set-auto-groups false
+porchlight config set-app-services false
 porchlight config set-recent-ttl off
 porchlight config set-recent-ttl 240
 porchlight classify explain <port-or-server-id>
@@ -125,7 +127,7 @@ Use repeatable `--command` and `--path` flags for matching rules. If both comman
 
 `group` is present when either a user-defined Group matches or automatic classification has enough local evidence. User-defined Groups take precedence over automatic classification and emit `source: "manual group"`, `confidence: 1.0`, and a `color` when configured.
 
-Use `porchlight list --no-auto-groups` to hide automatically inferred groups while keeping user-defined Groups enabled. The macOS app exposes the same behavior as **Settings > Groups > Show automatic groups**.
+Use `porchlight list --no-auto-groups` to hide automatically inferred groups while keeping user-defined Groups enabled. Use `porchlight list --no-app-services` to hide app-bundle background listeners classified as `Application Service`, such as Adobe Creative Cloud or Ableton helper servers. The macOS app exposes the same behavior in **Settings > Groups**.
 
 ## Automatic Classification
 
@@ -134,6 +136,7 @@ Automatic grouping is deterministic, local-only, and explainable. When automatic
 - User-defined Groups from `groups.json`.
 - Generic worktree-family paths, such as `customer-portal-worktrees/ticket-123` grouping as `Customer Portal`.
 - Built-in and user classification rules for service-style processes.
+- Generic `.app` bundle fallback for background listeners from open macOS apps.
 - Metadata fallback from project files and working-directory evidence.
 
 The metadata fallback currently uses evidence from:

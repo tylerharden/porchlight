@@ -10,12 +10,14 @@ pub struct Config {
     pub refresh_interval_seconds: u64,
     pub show_recents: bool,
     pub show_automatic_groups: bool,
+    pub show_app_services: bool,
     pub recent_ttl_minutes: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 struct UserConfig {
     show_automatic_groups: Option<bool>,
+    show_app_services: Option<bool>,
     recent_ttl_minutes: Option<u64>,
 }
 
@@ -27,6 +29,9 @@ impl Config {
         if let Some(show_automatic_groups) = user_config.show_automatic_groups {
             config.show_automatic_groups = show_automatic_groups;
         }
+        if let Some(show_app_services) = user_config.show_app_services {
+            config.show_app_services = show_app_services;
+        }
         config.recent_ttl_minutes = user_config.recent_ttl_minutes;
 
         Ok(config)
@@ -35,6 +40,12 @@ impl Config {
     pub fn set_show_automatic_groups(value: bool) -> Result<(), ConfigError> {
         let mut user_config = load_user_config()?;
         user_config.show_automatic_groups = Some(value);
+        save_user_config(&user_config)
+    }
+
+    pub fn set_show_app_services(value: bool) -> Result<(), ConfigError> {
+        let mut user_config = load_user_config()?;
+        user_config.show_app_services = Some(value);
         save_user_config(&user_config)
     }
 
@@ -174,6 +185,7 @@ impl Default for Config {
             refresh_interval_seconds: 5,
             show_recents: true,
             show_automatic_groups: true,
+            show_app_services: true,
             recent_ttl_minutes: None,
         }
     }
@@ -192,6 +204,7 @@ mod tests {
             refresh_interval_seconds: 5,
             show_recents: true,
             show_automatic_groups: true,
+            show_app_services: true,
             recent_ttl_minutes: None,
         };
 

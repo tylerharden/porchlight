@@ -18,10 +18,13 @@ struct PorchlightCLI {
         return developmentPath
     }
 
-    func listServers(showAutomaticGroups: Bool = true) async throws -> [LocalServer] {
+    func listServers(showAutomaticGroups: Bool = true, showAppServices: Bool = true) async throws -> [LocalServer] {
         var arguments = ["list", "--json"]
         if !showAutomaticGroups {
             arguments.append("--no-auto-groups")
+        }
+        if !showAppServices {
+            arguments.append("--no-app-services")
         }
 
         let data = try await run(arguments: arguments)
@@ -57,6 +60,10 @@ struct PorchlightCLI {
 
     func setAutomaticGroups(_ enabled: Bool) async throws {
         _ = try await run(arguments: ["config", "set-auto-groups", enabled ? "true" : "false"])
+    }
+
+    func setAppServices(_ enabled: Bool) async throws {
+        _ = try await run(arguments: ["config", "set-app-services", enabled ? "true" : "false"])
     }
 
     func reset() async throws {

@@ -235,7 +235,7 @@ impl AppState {
         self.hidden_groups.remove(target)
     }
 
-    pub fn visible_servers(&self, servers: Vec<LocalServer>) -> Vec<LocalServer> {
+    pub fn visible_servers(&self, servers: Vec<LocalServer>, config: &Config) -> Vec<LocalServer> {
         servers
             .into_iter()
             .filter(|server| !self.hidden_servers.contains(&server_identity_key(server)))
@@ -244,6 +244,13 @@ impl AppState {
                     .group
                     .as_ref()
                     .is_none_or(|group| !self.hidden_groups.contains(&group.id))
+            })
+            .filter(|server| {
+                config.show_app_services
+                    || server
+                        .group
+                        .as_ref()
+                        .is_none_or(|group| group.kind != "Application Service")
             })
             .collect()
     }
@@ -778,10 +785,47 @@ mod tests {
         state.hide_group("hidden-group");
         state.hidden_servers.insert("8002:/tmp/hidden".into());
 
-        let servers =
-            state.visible_servers(vec![visible.clone(), hidden_by_group, hidden_by_identity]);
+        let servers = state.visible_servers(
+            vec![visible.clone(), hidden_by_group, hidden_by_identity],
+            &Config::default(),
+        );
 
         assert_eq!(servers, vec![visible]);
+    }
+
+    #[test]
+    fn filters_application_services_when_disabled() {
+        let mut dev = server("dev", 8000, "/tmp/dev", ServerStatus::Active);
+        dev.group = Some(ServerGroupMatch {
+            id: "dev".into(),
+            name: "Dev".into(),
+            kind: "Django".into(),
+            role: "Backend".into(),
+            color: None,
+            icon: None,
+            confidence: 1.0,
+            source: "README".into(),
+        });
+        let mut app_service = server("app", 9877, "/", ServerStatus::Active);
+        app_service.group = Some(ServerGroupMatch {
+            id: "ableton-live-12-suite".into(),
+            name: "Ableton Live 12 Suite".into(),
+            kind: "Application Service".into(),
+            role: "Background Service".into(),
+            color: None,
+            icon: None,
+            confidence: 0.78,
+            source: "application bundle path".into(),
+        });
+        let state = AppState::default();
+        let config = Config {
+            show_app_services: false,
+            ..Config::default()
+        };
+
+        let servers = state.visible_servers(vec![dev.clone(), app_service], &config);
+
+        assert_eq!(servers, vec![dev]);
     }
 
     fn fresh_recent(id: &str, port: u16, working_directory: &str) -> LocalServer {

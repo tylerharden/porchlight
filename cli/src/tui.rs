@@ -105,7 +105,7 @@ impl TuiApp {
         let active_servers = scanner::scan(&self.config)?;
         let mut state = state::AppState::load()?;
         let servers = state.merge_servers(active_servers, &self.config);
-        self.servers = state.visible_servers(servers);
+        self.servers = state.visible_servers(servers, &self.config);
         state.save()?;
         self.last_refresh = Instant::now();
         self.clamp_selection();

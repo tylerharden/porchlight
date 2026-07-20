@@ -373,6 +373,11 @@ struct SettingsView: View {
                     Text("When disabled, only groups you create manually are shown.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+
+                    Toggle("Show app services", isOn: $settings.showAppServices)
+                    Text("When disabled, hides background listeners from apps like Adobe Creative Cloud and Ableton.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             }
 

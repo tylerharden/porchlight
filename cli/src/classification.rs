@@ -179,6 +179,7 @@ fn app_bundle_group(
     let bundle = find_app_bundle_text(command)
         .or_else(|| working_directory.and_then(find_app_bundle_text))?;
     let (name, id) = app_bundle_identity(&bundle)?;
+    let icon = icon.or_else(|| discover_app_bundle_icon(&bundle));
 
     Some(ServerGroupMatch {
         id,
@@ -201,6 +202,54 @@ fn find_app_bundle_text(value: &str) -> Option<String> {
     bundle.contains('/').then_some(bundle)
 }
 
+fn discover_app_bundle_icon(bundle: &str) -> Option<String> {
+    let bundle = PathBuf::from(bundle);
+    let resources = bundle.join("Contents").join("Resources");
+    if !resources.is_dir() {
+        return None;
+    }
+
+    let app_stem = bundle
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.trim_end_matches(".app"));
+    let preferred_names = [
+        app_stem.map(|name| format!("{name}.icns")),
+        Some("app.icns".to_string()),
+        Some("icon.icns".to_string()),
+        Some("cc_app.icns".to_string()),
+    ];
+
+    for name in preferred_names.into_iter().flatten() {
+        let candidate = resources.join(name);
+        if candidate.is_file() {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    let mut candidates = std::fs::read_dir(resources)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("icns"))
+        })
+        .filter(|path| {
+            path.file_stem()
+                .and_then(|stem| stem.to_str())
+                .is_none_or(|stem| !stem.eq_ignore_ascii_case("generic"))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort();
+
+    candidates
+        .into_iter()
+        .next()
+        .map(|path| path.to_string_lossy().to_string())
+}
+
 fn app_bundle_identity(bundle: &str) -> Option<(String, String)> {
     let components = bundle
         .split('/')
@@ -213,16 +262,16 @@ fn app_bundle_identity(bundle: &str) -> Option<(String, String)> {
     let parent_name = app_index
         .checked_sub(1)
         .and_then(|index| components.get(index));
-    let vendor_name = parent_name
+    let preferred_parent_name = parent_name
+        .copied()
+        .filter(|parent| should_prefer_parent_app_name(app_name, parent));
+    let vendor_name = preferred_parent_name
         .and_then(|_| app_index.checked_sub(2))
         .and_then(|index| components.get(index))
         .copied()
         .filter(|value| !is_generic_path_component(value));
 
-    let base_name = parent_name
-        .copied()
-        .filter(|parent| should_prefer_parent_app_name(app_name, parent))
-        .unwrap_or(app_name);
+    let base_name = preferred_parent_name.unwrap_or(app_name);
     let name = match vendor_name {
         Some(vendor) if !same_normalized_name(vendor, base_name) => {
             format!("{} {}", titleize(vendor), titleize(base_name))
@@ -963,6 +1012,33 @@ mod tests {
         assert_eq!(group.kind, "Application Service");
         assert_eq!(group.role, "Background Service");
         assert_eq!(group.source, "application bundle path");
+    }
+
+    #[test]
+    fn app_bundle_fallback_discovers_bundle_icons() {
+        let root =
+            std::env::temp_dir().join(format!("porchlight-app-icon-test-{}", std::process::id()));
+        let resources = root
+            .join("Applications")
+            .join("Example.app")
+            .join("Contents")
+            .join("Resources");
+        std::fs::create_dir_all(&resources).unwrap();
+        let icon = resources.join("app.icns");
+        std::fs::write(&icon, []).unwrap();
+        let command = format!(
+            "{}/Contents/MacOS/Example --server",
+            root.join("Applications")
+                .join("Example.app")
+                .to_string_lossy()
+        );
+
+        let group = auto_group("Example", &command, None, "Unknown", None).unwrap();
+
+        assert_eq!(group.id, "example");
+        assert_eq!(group.icon.as_deref(), Some(icon.to_str().unwrap()));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

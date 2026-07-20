@@ -83,7 +83,10 @@ final class StatusBarController: NSObject {
 
     private func loadServers() async -> String? {
         do {
-            servers = try await cli.listServers(showAutomaticGroups: settings.showAutomaticGroups)
+            servers = try await cli.listServers(
+                showAutomaticGroups: settings.showAutomaticGroups,
+                showAppServices: settings.showAppServices
+            )
             statusItem.button?.image = PorchlightStatusIcon.image(isActive: servers.contains { $0.isActive })
             applyMenuVisibility()
             return nil
