@@ -30,14 +30,18 @@ final class AppSettings {
     var showAutomaticGroups: Bool {
         didSet {
             persistAndNotify("showAutomaticGroups", showAutomaticGroups)
-            persistAutomaticGroupsToCLI()
+            persistCLISetting(showAutomaticGroups) { cli, value in
+                try await cli.setAutomaticGroups(value)
+            }
         }
     }
 
     var showAppServices: Bool {
         didSet {
             persistAndNotify("showAppServices", showAppServices)
-            persistAppServicesToCLI()
+            persistCLISetting(showAppServices) { cli, value in
+                try await cli.setAppServices(value)
+            }
         }
     }
 
@@ -86,27 +90,15 @@ final class AppSettings {
         NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
     }
 
-    private func persistAutomaticGroupsToCLI() {
+    private func persistCLISetting(
+        _ value: Bool,
+        update: @escaping (PorchlightCLI, Bool) async throws -> Void
+    ) {
         guard !isResetting else { return }
 
-        let showAutomaticGroups = showAutomaticGroups
         Task {
             do {
-                try await PorchlightCLI().setAutomaticGroups(showAutomaticGroups)
-                errorMessage = nil
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private func persistAppServicesToCLI() {
-        guard !isResetting else { return }
-
-        let showAppServices = showAppServices
-        Task {
-            do {
-                try await PorchlightCLI().setAppServices(showAppServices)
+                try await update(PorchlightCLI(), value)
                 errorMessage = nil
             } catch {
                 errorMessage = error.localizedDescription

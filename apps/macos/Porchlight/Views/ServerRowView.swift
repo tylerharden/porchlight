@@ -6,43 +6,67 @@ struct ServerRowView: View {
     var showsGroup = true
 
     var body: some View {
-        HStack(spacing: 8) {
-            if isStarting {
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(width: 12, height: 12)
-            } else {
-                Circle()
-                    .fill(server.isActive ? Color.green : Color.gray.opacity(0.45))
-                    .frame(width: 12, height: 12)
-            }
+        HStack(alignment: .top, spacing: 8) {
+            statusIndicator
+                .padding(.top, 4)
 
-            Text(verbatim: String(server.port))
-                .font(.body)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(verbatim: String(server.port))
+                        .font(.body.weight(.medium))
 
-            Text(server.serverType)
-                .font(.caption)
+                    Text(server.serverType)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    if server.pinned {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+
+                HStack(spacing: 5) {
+                    if showsGroup, let group = server.group {
+                        GroupIconView(icon: server.icon ?? group.icon, color: group.color ?? "#8E8E93", size: 8)
+
+                        Text(group.name)
+                    } else if server.icon != nil {
+                        GroupIconView(icon: server.icon, color: "#8E8E93", size: 8)
+                    }
+
+                    Text(server.locationText)
+                        .truncationMode(.middle)
+
+                    if let lastSeenText = server.lastSeenText, !server.isActive {
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+                        Text(lastSeenText)
+                    }
+                }
+                .font(.caption2)
                 .foregroundStyle(.secondary)
-
-            if showsGroup, let group = server.group {
-                GroupIconView(icon: server.icon ?? group.icon, color: group.color ?? "#8E8E93", size: 8)
-
-                Text(group.name)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if server.icon != nil {
-                GroupIconView(icon: server.icon, color: "#8E8E93", size: 8)
+                .lineLimit(1)
             }
-
-            if server.pinned {
-                Image(systemName: "pin.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
         }
+        .padding(.vertical, 3)
         .opacity(server.isActive || isStarting ? 1 : 0.62)
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        if isStarting {
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 12, height: 12)
+        } else {
+            Circle()
+                .fill(server.isActive ? Color.green : Color.gray.opacity(0.45))
+                .frame(width: 12, height: 12)
+        }
     }
 }
 

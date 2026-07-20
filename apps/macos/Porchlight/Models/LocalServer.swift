@@ -18,6 +18,7 @@ struct LocalServer: Decodable, Identifiable, Hashable {
     let displayDirectory: String?
     let url: String
     let pinned: Bool
+    let hidden: Bool
     let lastSeenAt: String?
     let startCommand: String?
 
@@ -35,8 +36,65 @@ struct LocalServer: Decodable, Identifiable, Hashable {
         case displayDirectory = "display_directory"
         case url
         case pinned
+        case hidden
         case lastSeenAt = "last_seen_at"
         case startCommand = "start_command"
+    }
+
+    init(
+        id: String,
+        port: Int,
+        pid: Int,
+        status: ServerStatus,
+        processName: String,
+        serverType: String,
+        icon: String?,
+        group: ServerGroupMatch?,
+        command: String,
+        workingDirectory: String?,
+        displayDirectory: String?,
+        url: String,
+        pinned: Bool,
+        hidden: Bool = false,
+        lastSeenAt: String?,
+        startCommand: String?
+    ) {
+        self.id = id
+        self.port = port
+        self.pid = pid
+        self.status = status
+        self.processName = processName
+        self.serverType = serverType
+        self.icon = icon
+        self.group = group
+        self.command = command
+        self.workingDirectory = workingDirectory
+        self.displayDirectory = displayDirectory
+        self.url = url
+        self.pinned = pinned
+        self.hidden = hidden
+        self.lastSeenAt = lastSeenAt
+        self.startCommand = startCommand
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        port = try container.decode(Int.self, forKey: .port)
+        pid = try container.decode(Int.self, forKey: .pid)
+        status = try container.decode(ServerStatus.self, forKey: .status)
+        processName = try container.decode(String.self, forKey: .processName)
+        serverType = try container.decode(String.self, forKey: .serverType)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon)
+        group = try container.decodeIfPresent(ServerGroupMatch.self, forKey: .group)
+        command = try container.decode(String.self, forKey: .command)
+        workingDirectory = try container.decodeIfPresent(String.self, forKey: .workingDirectory)
+        displayDirectory = try container.decodeIfPresent(String.self, forKey: .displayDirectory)
+        url = try container.decode(String.self, forKey: .url)
+        pinned = try container.decode(Bool.self, forKey: .pinned)
+        hidden = try container.decodeIfPresent(Bool.self, forKey: .hidden) ?? false
+        lastSeenAt = try container.decodeIfPresent(String.self, forKey: .lastSeenAt)
+        startCommand = try container.decodeIfPresent(String.self, forKey: .startCommand)
     }
 
     var locationText: String {

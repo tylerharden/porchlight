@@ -102,45 +102,22 @@ struct SettingsView: View {
                         }
                     }
 
-                    ForEach(serverSections) { section in
+                    ForEach(visibleServerSections) { section in
                         Section {
                             ForEach(section.servers) { server in
-                                ServerRowView(
-                                    server: server,
-                                    isStarting: viewModel.startingServerIDs.contains(server.id),
-                                    showsGroup: section.group == nil
-                                )
-                                    .tag(server.id)
-                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                        if server.isActive {
-                                            Button("Turn Off", role: .destructive) {
-                                                Task { await viewModel.kill(server) }
-                                            }
-                                        } else {
-                                            Button("Turn On") {
-                                                Task { await viewModel.start(server) }
-                                            }
-                                            .disabled(server.resolvedStartCommand == nil)
-                                        }
-                                    }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        if server.pinned {
-                                            Button("Unpin") {
-                                                Task { await viewModel.togglePin(server) }
-                                            }
-                                        } else {
-                                            Button("Hide") {
-                                                Task { await viewModel.hide(server) }
-                                            }
-                                            Button("Remove", role: .destructive) {
-                                                Task { await viewModel.remove(server) }
-                                            }
-                                        }
-                                    }
+                                serverRow(server, showsGroup: section.group == nil)
                             }
                         } header: {
                             if let group = section.group {
                                 ServerGroupHeaderView(group: group)
+                            }
+                        }
+                    }
+
+                    if !hiddenServers.isEmpty {
+                        Section("Hidden") {
+                            ForEach(hiddenServers) { server in
+                                serverRow(server, showsGroup: true)
                             }
                         }
                     }
@@ -193,38 +170,66 @@ struct SettingsView: View {
         return viewModel.servers.first { $0.id == selectedServerID }
     }
 
-    private var serverSections: [ServerSection] {
-        var sections: [ServerSection] = []
-        var ungroupedServers: [LocalServer] = []
+    private var visibleServerSections: [ServerSection] {
+        viewModel.servers.filter { !$0.hidden }.groupedSections()
+    }
 
-        for server in viewModel.servers {
-            guard let group = server.group else {
-                ungroupedServers.append(server)
-                continue
+    private var hiddenServers: [LocalServer] {
+        viewModel.servers.filter(\.hidden)
+    }
+
+    private func serverRow(_ server: LocalServer, showsGroup: Bool) -> some View {
+        ServerRowView(
+            server: server,
+            isStarting: viewModel.startingServerIDs.contains(server.id),
+            showsGroup: showsGroup
+        )
+            .tag(server.id)
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                if server.hidden {
+                    Button("Unhide") {
+                        Task { await viewModel.unhide(server) }
+                    }
+                } else if server.isActive {
+                    Button("Turn Off", role: .destructive) {
+                        Task { await viewModel.kill(server) }
+                    }
+                } else {
+                    Button("Turn On") {
+                        Task { await viewModel.start(server) }
+                    }
+                    .disabled(server.resolvedStartCommand == nil)
+                }
             }
-
-            if let index = sections.firstIndex(where: { $0.id == group.id }) {
-                sections[index].servers.append(server)
-            } else {
-                sections.append(ServerSection(group: group, servers: [server]))
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                if server.hidden {
+                    Button("Remove", role: .destructive) {
+                        Task { await viewModel.remove(server) }
+                    }
+                } else if server.pinned {
+                    Button("Unpin") {
+                        Task { await viewModel.togglePin(server) }
+                    }
+                } else {
+                    Button("Hide") {
+                        Task { await viewModel.hide(server) }
+                    }
+                    Button("Remove", role: .destructive) {
+                        Task { await viewModel.remove(server) }
+                    }
+                }
             }
-        }
-
-        if !ungroupedServers.isEmpty {
-            sections.append(ServerSection(group: nil, servers: ungroupedServers))
-        }
-
-        return sections
     }
 
     private func selectFallbackServer() {
-        guard !viewModel.servers.isEmpty else {
+        let visibleServers = viewModel.servers.filter { !$0.hidden }
+        guard !visibleServers.isEmpty else {
             selectedServerID = nil
             return
         }
 
-        if selectedServer == nil {
-            selectedServerID = viewModel.servers.first?.id
+        if selectedServer == nil || selectedServer?.hidden == true {
+            selectedServerID = visibleServers.first?.id
         }
     }
 
@@ -241,7 +246,7 @@ struct SettingsView: View {
             HSplitView {
                 List(selection: $selectedGroupID) {
                     Section {
-                        ForEach(groupStore.summaries) { group in
+                        ForEach(visibleGroupSummaries) { group in
                             Label {
                                 HStack {
                                     Text(group.name)
@@ -249,11 +254,6 @@ struct SettingsView: View {
                                     Text(group.manual ? "Manual" : "Auto")
                                         .font(.caption2.weight(.semibold))
                                         .foregroundStyle(.secondary)
-                                    if group.hidden {
-                                        Text("Hidden")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(.secondary)
-                                    }
                                 }
                             } icon: {
                                 GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
@@ -261,8 +261,9 @@ struct SettingsView: View {
                             .tag(group.id)
                         }
                         .onDelete { offsets in
+                            let groups = visibleGroupSummaries
                             let ids = offsets
-                                .map { groupStore.summaries[$0] }
+                                .compactMap { groups.indices.contains($0) ? groups[$0] : nil }
                                 .filter(\.manual)
                                 .map(\.id)
                             ids.forEach(groupStore.deleteGroup)
@@ -278,6 +279,25 @@ struct SettingsView: View {
                                 Image(systemName: "plus")
                             }
                             .buttonStyle(.plain)
+                        }
+                    }
+
+                    if !hiddenGroupSummaries.isEmpty {
+                        Section("Hidden") {
+                            ForEach(hiddenGroupSummaries) { group in
+                                Label {
+                                    HStack {
+                                        Text(group.name)
+                                        Spacer()
+                                        Text(group.manual ? "Manual" : "Auto")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } icon: {
+                                    GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
+                                }
+                                .tag(group.id)
+                            }
                         }
                     }
                 }
@@ -315,14 +335,23 @@ struct SettingsView: View {
     }
 
     private func selectFallbackGroup() {
-        guard !groupStore.summaries.isEmpty else {
+        let visibleGroups = visibleGroupSummaries
+        guard !visibleGroups.isEmpty else {
             selectedGroupID = nil
             return
         }
 
-        if selectedGroupID == nil || !groupStore.summaries.contains(where: { $0.id == selectedGroupID }) {
-            selectedGroupID = groupStore.summaries.first?.id
+        if selectedGroupID == nil || !visibleGroups.contains(where: { $0.id == selectedGroupID }) {
+            selectedGroupID = visibleGroups.first?.id
         }
+    }
+
+    private var visibleGroupSummaries: [GroupSummary] {
+        groupStore.summaries.filter { !$0.hidden }
+    }
+
+    private var hiddenGroupSummaries: [GroupSummary] {
+        groupStore.summaries.filter(\.hidden)
     }
 
     private var settingsPane: some View {
@@ -469,15 +498,6 @@ struct SettingsView: View {
     }
 }
 
-private struct ServerSection: Identifiable {
-    let group: ServerGroupMatch?
-    var servers: [LocalServer]
-
-    var id: String {
-        group?.id ?? "ungrouped"
-    }
-}
-
 private struct ServerGroupHeaderView: View {
     let group: ServerGroupMatch
 
@@ -524,17 +544,17 @@ private struct TabButton: View {
                     Image(nsImage: PorchlightStatusIcon.image(isActive: false))
                         .renderingMode(.template)
                         .resizable()
-                        .frame(width: 13, height: 13)
+                        .frame(width: 20, height: 20)
                 } else {
                     Image(systemName: tab.icon)
-                        .font(.caption)
+                        .font(.title3)
                 }
                 Text(tab.rawValue)
                     .font(.caption2)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .frame(minWidth: 66, minHeight: 42)
+            .padding(.vertical, 7)
+            .frame(minWidth: 72, minHeight: 52)
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
             .background {

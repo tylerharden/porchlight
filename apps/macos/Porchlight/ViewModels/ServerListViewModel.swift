@@ -47,7 +47,8 @@ final class ServerListViewModel {
         do {
             servers = try await cli.listServers(
                 showAutomaticGroups: settings?.showAutomaticGroups ?? true,
-                showAppServices: settings?.showAppServices ?? true
+                showAppServices: settings?.showAppServices ?? true,
+                includeHidden: true
             )
             errorMessage = nil
             lastRefreshedAt = Date()
@@ -77,6 +78,10 @@ final class ServerListViewModel {
 
     func hide(_ server: LocalServer) async {
         await performServerAction { try await cli.hideServer(server) }
+    }
+
+    func unhide(_ server: LocalServer) async {
+        await performServerAction { try await cli.unhideServer(server) }
     }
 
     func killAndRemove(_ server: LocalServer) async {

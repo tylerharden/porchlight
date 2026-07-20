@@ -29,8 +29,15 @@ pub struct LocalServer {
     pub display_directory: Option<String>,
     pub url: String,
     pub pinned: bool,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "is_false")]
+    pub hidden: bool,
     pub last_seen_at: Option<String>,
     pub start_command: Option<String>,
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

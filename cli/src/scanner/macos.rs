@@ -81,6 +81,7 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             display_directory,
             url: format!("http://localhost:{}", listener.port),
             pinned: false,
+            hidden: false,
             last_seen_at: None,
             start_command: Some(start_command),
         };

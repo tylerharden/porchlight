@@ -18,13 +18,20 @@ struct PorchlightCLI {
         return developmentPath
     }
 
-    func listServers(showAutomaticGroups: Bool = true, showAppServices: Bool = true) async throws -> [LocalServer] {
+    func listServers(
+        showAutomaticGroups: Bool = true,
+        showAppServices: Bool = true,
+        includeHidden: Bool = false
+    ) async throws -> [LocalServer] {
         var arguments = ["list", "--json"]
         if !showAutomaticGroups {
             arguments.append("--no-auto-groups")
         }
         if !showAppServices {
             arguments.append("--no-app-services")
+        }
+        if includeHidden {
+            arguments.append("--include-hidden")
         }
 
         let data = try await run(arguments: arguments)
@@ -80,6 +87,10 @@ struct PorchlightCLI {
 
     func hideServer(_ server: LocalServer) async throws {
         _ = try await run(arguments: ["hide", server.id])
+    }
+
+    func unhideServer(_ server: LocalServer) async throws {
+        _ = try await run(arguments: ["unhide", server.id])
     }
 
     func pinServer(_ server: LocalServer) async throws {

@@ -236,15 +236,22 @@ impl AppState {
     }
 
     pub fn visible_servers(&self, servers: Vec<LocalServer>, config: &Config) -> Vec<LocalServer> {
+        self.listed_servers(servers, config, false)
+    }
+
+    pub fn listed_servers(
+        &self,
+        servers: Vec<LocalServer>,
+        config: &Config,
+        include_hidden: bool,
+    ) -> Vec<LocalServer> {
         servers
             .into_iter()
-            .filter(|server| !self.hidden_servers.contains(&server_identity_key(server)))
-            .filter(|server| {
+            .map(|mut server| {
+                server.hidden = self.server_is_hidden(&server);
                 server
-                    .group
-                    .as_ref()
-                    .is_none_or(|group| !self.hidden_groups.contains(&group.id))
             })
+            .filter(|server| include_hidden || !server.hidden)
             .filter(|server| {
                 config.show_app_services
                     || server
@@ -253,6 +260,14 @@ impl AppState {
                         .is_none_or(|group| group.kind != "Application Service")
             })
             .collect()
+    }
+
+    fn server_is_hidden(&self, server: &LocalServer) -> bool {
+        self.hidden_servers.contains(&server_identity_key(server))
+            || server
+                .group
+                .as_ref()
+                .is_some_and(|group| self.hidden_groups.contains(&group.id))
     }
 
     pub fn set_pinned(&mut self, target: &str, pinned: bool) -> bool {
@@ -785,12 +800,17 @@ mod tests {
         state.hide_group("hidden-group");
         state.hidden_servers.insert("8002:/tmp/hidden".into());
 
-        let servers = state.visible_servers(
-            vec![visible.clone(), hidden_by_group, hidden_by_identity],
-            &Config::default(),
-        );
+        let all_servers = vec![visible.clone(), hidden_by_group, hidden_by_identity];
+        let servers = state.visible_servers(all_servers.clone(), &Config::default());
 
         assert_eq!(servers, vec![visible]);
+
+        let servers = state.listed_servers(all_servers, &Config::default(), true);
+
+        assert_eq!(servers.len(), 3);
+        assert!(!servers[0].hidden);
+        assert!(servers[1].hidden);
+        assert!(servers[2].hidden);
     }
 
     #[test]
@@ -849,6 +869,7 @@ mod tests {
             display_directory: Some(working_directory.into()),
             url: format!("http://localhost:{port}"),
             pinned: false,
+            hidden: false,
             last_seen_at: None,
             start_command: None,
         }

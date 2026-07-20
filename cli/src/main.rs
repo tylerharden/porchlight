@@ -35,6 +35,9 @@ enum Commands {
         /// Hide application/background services from app bundles.
         #[arg(long = "no-app-services")]
         no_app_services: bool,
+        /// Include hidden servers, marked with hidden: true in JSON output.
+        #[arg(long = "include-hidden")]
+        include_hidden: bool,
     },
     /// Show configuration.
     Config {
@@ -218,6 +221,27 @@ struct GroupSummaryDocument {
     groups: Vec<GroupSummary>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ServerQueryOptions {
+    visible_only: bool,
+    include_hidden: bool,
+}
+
+impl ServerQueryOptions {
+    const ALL: Self = Self {
+        visible_only: false,
+        include_hidden: false,
+    };
+    const VISIBLE: Self = Self {
+        visible_only: true,
+        include_hidden: false,
+    };
+    const INCLUDE_HIDDEN: Self = Self {
+        visible_only: false,
+        include_hidden: true,
+    };
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct GroupSummary {
     id: String,
@@ -329,11 +353,13 @@ fn run() -> Result<(), PorchlightError> {
         json: false,
         no_auto_groups: false,
         no_app_services: false,
+        include_hidden: false,
     }) {
         Commands::List {
             json,
             no_auto_groups,
             no_app_services,
+            include_hidden,
         } => {
             if no_auto_groups {
                 config.show_automatic_groups = false;
@@ -341,11 +367,11 @@ fn run() -> Result<(), PorchlightError> {
             if no_app_services {
                 config.show_app_services = false;
             }
-            let active_servers = scanner::scan(&config)?;
-            let mut state = state::AppState::load()?;
-            let servers = state.merge_servers(active_servers, &config);
-            let servers = state.visible_servers(servers, &config);
-            state.save()?;
+            let servers = if include_hidden {
+                current_servers_including_hidden(&config)?
+            } else {
+                current_servers(&config)?
+            };
 
             if json {
                 let response = model::ServerList { servers };
@@ -419,11 +445,8 @@ fn run() -> Result<(), PorchlightError> {
             );
         }
         Commands::Hide { target } => {
-            let active_servers = scanner::scan(&config)?;
-            let mut state = state::AppState::load()?;
-            state.merge_servers(active_servers, &config);
-            let changed = state.hide_server(&target);
-            state.save()?;
+            let (_, mut state) = current_servers_and_state(&config, ServerQueryOptions::ALL)?;
+            let changed = update_loaded_state(&mut state, |state| state.hide_server(&target))?;
             println!(
                 "{}",
                 if changed {
@@ -482,10 +505,7 @@ fn handle_classify_command(
 ) -> Result<(), PorchlightError> {
     match command {
         ClassifyCommands::Explain { target, json } => {
-            let active_servers = scanner::scan(config)?;
-            let mut state = state::AppState::load()?;
-            let servers = state.merge_servers(active_servers, config);
-            state.save()?;
+            let servers = current_servers_for_explain(config)?;
             let target_port = target.parse::<u16>().ok();
             let server = servers
                 .into_iter()
@@ -724,24 +744,44 @@ fn handle_group_command(command: GroupCommands, config: &Config) -> Result<(), P
 }
 
 fn current_servers(config: &Config) -> Result<Vec<LocalServer>, PorchlightError> {
-    Ok(current_servers_and_state(config)?.0)
+    Ok(current_servers_and_state(config, ServerQueryOptions::VISIBLE)?.0)
+}
+
+fn current_servers_for_explain(config: &Config) -> Result<Vec<LocalServer>, PorchlightError> {
+    Ok(current_servers_and_state(config, ServerQueryOptions::ALL)?.0)
+}
+
+fn current_servers_including_hidden(config: &Config) -> Result<Vec<LocalServer>, PorchlightError> {
+    Ok(current_servers_and_state(config, ServerQueryOptions::INCLUDE_HIDDEN)?.0)
 }
 
 fn update_state<T>(update: impl FnOnce(&mut state::AppState) -> T) -> Result<T, PorchlightError> {
     let mut state = state::AppState::load()?;
-    let output = update(&mut state);
+    update_loaded_state(&mut state, update)
+}
+
+fn update_loaded_state<T>(
+    state: &mut state::AppState,
+    update: impl FnOnce(&mut state::AppState) -> T,
+) -> Result<T, PorchlightError> {
+    let output = update(state);
     state.save()?;
     Ok(output)
 }
 
 fn current_servers_and_state(
     config: &Config,
+    options: ServerQueryOptions,
 ) -> Result<(Vec<LocalServer>, state::AppState), PorchlightError> {
     let active_servers = scanner::scan(config)?;
     let mut state = state::AppState::load()?;
     let servers = state.merge_servers(active_servers, config);
     state.save()?;
-    let servers = state.visible_servers(servers, config);
+    let servers = if options.visible_only || options.include_hidden {
+        state.listed_servers(servers, config, options.include_hidden)
+    } else {
+        servers
+    };
     Ok((servers, state))
 }
 
@@ -751,7 +791,7 @@ fn group_summary(config: &Config) -> Result<Vec<GroupSummary>, PorchlightError> 
         .iter()
         .map(|group| group.id.clone())
         .collect::<BTreeSet<_>>();
-    let (servers, state) = current_servers_and_state(config)?;
+    let (servers, state) = current_servers_and_state(config, ServerQueryOptions::VISIBLE)?;
     let hidden_group_ids = state.hidden_groups.clone();
     let mut summaries = BTreeMap::<String, GroupSummary>::new();
 
@@ -791,6 +831,13 @@ fn group_summary(config: &Config) -> Result<Vec<GroupSummary>, PorchlightError> 
             .entry(group.id.clone())
             .or_insert_with(|| GroupSummary::from_group_match(group.clone(), source));
 
+        summary.color = summary.color.take().or(group.color.clone());
+        summary.icon = summary
+            .icon
+            .take()
+            .or_else(|| server.icon.clone())
+            .or(group.icon.clone());
+
         if server.status == ServerStatus::Active {
             summary.active_server_count += 1;
         } else if server.status == ServerStatus::Recent {
@@ -826,7 +873,7 @@ fn group_summary(config: &Config) -> Result<Vec<GroupSummary>, PorchlightError> 
 }
 
 fn promote_group(config: &Config, target: &str) -> Result<ServerGroup, PorchlightError> {
-    let servers = current_servers(config)?;
+    let servers = current_servers_including_hidden(config)?;
     let matching_servers = servers
         .iter()
         .filter(|server| {

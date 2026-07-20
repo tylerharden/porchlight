@@ -46,23 +46,32 @@ struct ServerDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         if server.isActive {
-                            Button("Kill", role: .destructive) {
+                            Button("Stop", role: .destructive) {
                                 Task { await viewModel.kill(server) }
                             }
+                            .help("Stop the running process")
+
+                            Button("Stop and Remove", role: .destructive) {
+                                Task { await viewModel.killAndRemove(server) }
+                            }
+                            .help("Stop the process and remove it from Porchlight")
                         } else {
                             Button("Start") {
                                 Task { await viewModel.start(server) }
                             }
                             .disabled(server.resolvedStartCommand == nil)
-                        }
+                            .help(server.resolvedStartCommand == nil ? "No start command is available" : "Run the saved start command")
 
-                        Button("Remove", role: .destructive) {
-                            Task { await viewModel.remove(server) }
+                            Button("Remove", role: .destructive) {
+                                Task { await viewModel.remove(server) }
+                            }
+                            .help("Remove this server from Porchlight")
                         }
 
                         Button("Hide") {
                             Task { await viewModel.hide(server) }
                         }
+                        .help("Hide this server from normal lists")
                     }
 
                     Divider()

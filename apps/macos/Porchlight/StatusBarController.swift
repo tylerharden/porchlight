@@ -150,38 +150,17 @@ final class StatusBarController: NSObject {
     }
 
     private func addServerItems(to menu: NSMenu) {
-        var groups: [(group: ServerGroupMatch, servers: [LocalServer])] = []
-        var ungroupedServers: [LocalServer] = []
-
-        for server in servers {
-            guard let group = server.group else {
-                ungroupedServers.append(server)
-                continue
-            }
-
-            if let index = groups.firstIndex(where: { $0.group.id == group.id }) {
-                groups[index].servers.append(server)
-            } else {
-                groups.append((group, [server]))
-            }
-        }
-
         var addedSection = false
 
-        for group in groups {
+        for section in servers.groupedSections() {
             if addedSection {
                 menu.addItem(.separator())
             }
-            menu.addItem(groupHeaderItem(for: group.group))
-            group.servers.forEach { menu.addItem(menuItem(for: $0)) }
+            if let group = section.group {
+                menu.addItem(groupHeaderItem(for: group))
+            }
+            section.servers.forEach { menu.addItem(menuItem(for: $0)) }
             addedSection = true
-        }
-
-        if !ungroupedServers.isEmpty {
-            if addedSection {
-                menu.addItem(.separator())
-            }
-            ungroupedServers.forEach { menu.addItem(menuItem(for: $0)) }
         }
     }
 

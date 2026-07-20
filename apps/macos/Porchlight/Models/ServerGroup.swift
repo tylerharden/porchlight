@@ -83,6 +83,41 @@ struct GroupSummary: Decodable, Identifiable, Hashable {
     }
 }
 
+struct ServerSection: Identifiable {
+    let group: ServerGroupMatch?
+    var servers: [LocalServer]
+
+    var id: String {
+        group?.id ?? "ungrouped"
+    }
+}
+
+extension [LocalServer] {
+    func groupedSections() -> [ServerSection] {
+        var sections: [ServerSection] = []
+        var ungroupedServers: [LocalServer] = []
+
+        for server in self {
+            guard let group = server.group else {
+                ungroupedServers.append(server)
+                continue
+            }
+
+            if let index = sections.firstIndex(where: { $0.id == group.id }) {
+                sections[index].servers.append(server)
+            } else {
+                sections.append(ServerSection(group: group, servers: [server]))
+            }
+        }
+
+        if !ungroupedServers.isEmpty {
+            sections.append(ServerSection(group: nil, servers: ungroupedServers))
+        }
+
+        return sections
+    }
+}
+
 struct ServerGroup: Codable, Identifiable, Hashable {
     var id: String
     var name: String
@@ -172,11 +207,14 @@ final class ServerGroupStore {
     }
 
     func binding<Value>(for id: ServerGroup.ID, keyPath: WritableKeyPath<ServerGroup, Value>) -> Binding<Value>? {
-        guard let index = groups.firstIndex(where: { $0.id == id }) else { return nil }
+        guard let initialValue = groups.first(where: { $0.id == id })?[keyPath: keyPath] else { return nil }
 
         return Binding(
-            get: { self.groups[index][keyPath: keyPath] },
+            get: {
+                self.groups.first(where: { $0.id == id })?[keyPath: keyPath] ?? initialValue
+            },
             set: { newValue in
+                guard let index = self.groups.firstIndex(where: { $0.id == id }) else { return }
                 self.groups[index][keyPath: keyPath] = newValue
                 self.save()
             }
