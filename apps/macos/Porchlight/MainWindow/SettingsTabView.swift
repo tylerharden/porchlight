@@ -29,10 +29,10 @@ struct SettingsTabView: View {
                 }
             }
 
-            PreferenceRow(label: "Window:") {
+            PreferenceRow(label: "Dock:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide Dock icon", isOn: $settings.hideDockIcon)
-                    Text("Hide the Dock icon when all windows are closed.")
+                    Toggle("Hide icon when all windows are closed", isOn: $settings.hideDockIcon)
+                    Text("Keep Porchlight out of the Dock when you're not using it.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
