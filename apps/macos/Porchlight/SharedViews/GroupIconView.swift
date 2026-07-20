@@ -36,3 +36,12 @@ struct GroupIconView: View {
         return NSImage(contentsOfFile: path)
     }
 }
+
+#Preview("Group Icons") {
+    HStack(spacing: 16) {
+        GroupIconView(icon: nil, color: "#007AFF", size: 18)
+        GroupIconView(icon: nil, color: "#34C759", size: 18)
+        GroupIconView(icon: nil, color: "#FF9500", size: 18)
+    }
+    .padding()
+}

@@ -72,32 +72,17 @@ struct ServerRowView: View {
 
 #Preview {
     VStack(spacing: 0) {
-        ServerRowView(server: LocalServer(
-            id: "1", port: 3000, pid: 1234, status: .active,
-            processName: "node", serverType: "Next.js",
-            icon: nil,
-            group: ServerGroupMatch(id: "myapp", name: "Myapp", kind: "Next.js", role: "Frontend", color: "#007AFF", icon: nil, confidence: 1, source: "manual group"),
-            command: "next dev",
-            workingDirectory: "/Users/tyler/Developer/myapp",
-            displayDirectory: "~/Developer/myapp",
-            url: "http://localhost:3000",
-            pinned: true, lastSeenAt: nil, startCommand: "npm run dev"
-        ))
+        ServerRowView(server: PorchlightPreviewData.activeServer)
         .padding(.horizontal)
 
         Divider()
 
-        ServerRowView(server: LocalServer(
-            id: "2", port: 8000, pid: 5678, status: .recent,
-            processName: "python", serverType: "Django",
-            icon: nil,
-            group: nil,
-            command: "python manage.py runserver",
-            workingDirectory: "/Users/tyler/Developer/backend",
-            displayDirectory: "~/Developer/backend",
-            url: "http://localhost:8000",
-            pinned: false, lastSeenAt: nil, startCommand: nil
-        ))
+        ServerRowView(server: PorchlightPreviewData.recentServer)
+        .padding(.horizontal)
+
+        Divider()
+
+        ServerRowView(server: PorchlightPreviewData.hiddenServer, isStarting: true)
         .padding(.horizontal)
     }
     .padding(.vertical, 6)

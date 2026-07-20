@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 final class RefreshMenuItemView: NSView {
     private let title: String
@@ -91,4 +92,20 @@ final class RefreshMenuItemView: NSView {
 
         return secondary ? .secondaryLabelColor : .labelColor
     }
+}
+
+#Preview("Refresh Menu Item") {
+    let target = PreviewActionTarget()
+    VStack(spacing: 8) {
+        NSViewPreview {
+            RefreshMenuItemView(title: "Refresh", shortcut: "⌘R", target: target, action: #selector(PreviewActionTarget.performAction(_:)))
+        }
+        .frame(width: 220, height: 24)
+
+        NSViewPreview {
+            RefreshMenuItemView(title: "Kill All", isEnabled: false, target: target, action: #selector(PreviewActionTarget.performAction(_:)))
+        }
+        .frame(width: 220, height: 24)
+    }
+    .padding()
 }

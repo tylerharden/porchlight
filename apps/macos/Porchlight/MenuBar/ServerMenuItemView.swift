@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 final class ServerMenuItemView: NSView {
     private let server: LocalServer
@@ -42,4 +43,12 @@ final class ServerMenuItemView: NSView {
 
         title.draw(at: NSPoint(x: 30, y: 4))
     }
+}
+
+#Preview("Busy Server Menu Item") {
+    NSViewPreview {
+        ServerMenuItemView(server: PorchlightPreviewData.activeServer)
+    }
+    .frame(width: 220, height: 24)
+    .padding()
 }

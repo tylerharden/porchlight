@@ -312,7 +312,7 @@ struct DetailEditorRow<Content: View>: View {
     }
 }
 
-#Preview {
+#Preview("Manual Group") {
     let store = ServerGroupStore()
     store.groups = [
         ServerGroup(
@@ -325,4 +325,31 @@ struct DetailEditorRow<Content: View>: View {
     ]
     return GroupDetailView(groupID: "g1", store: store)
         .frame(width: 460, height: 480)
+}
+
+#Preview("Automatic Group") {
+    AutomaticGroupDetailView(
+        summary: GroupSummary(
+            id: "ableton-live-12-suite",
+            name: "Ableton Live 12 Suite",
+            source: "automatic",
+            manual: false,
+            kind: "Application Service",
+            role: "Service",
+            reason: "Matched running application bundle",
+            color: "#8E8E93",
+            icon: nil,
+            activeServerCount: 2,
+            recentServerCount: 1,
+            activeCount: 8,
+            hidden: false,
+            firstSeenAt: "2026-07-16T10:00:00Z",
+            lastSeenAt: "2026-07-20T10:00:00Z",
+            ports: [8080, 8081],
+            paths: ["/Applications/Ableton Live 12 Suite.app"]
+        ),
+        customize: {},
+        toggleHidden: {}
+    )
+    .frame(width: 460, height: 480)
 }

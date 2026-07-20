@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 final class StartMenuItemView: NSView {
     private let serverID: String
@@ -96,4 +97,45 @@ final class StartMenuItemView: NSView {
             progressIndicator.stopAnimation(nil)
         }
     }
+}
+
+#Preview("Start Menu Items") {
+    let target = PreviewActionTarget()
+    VStack(spacing: 8) {
+        NSViewPreview {
+            StartMenuItemView(
+                serverID: PorchlightPreviewData.recentServer.id,
+                isEnabled: true,
+                isStarting: false,
+                target: target,
+                action: #selector(PreviewActionTarget.performAction(_:))
+            )
+        }
+        .frame(width: 220, height: 24)
+
+        NSViewPreview {
+            StartMenuItemView(
+                serverID: PorchlightPreviewData.recentServer.id,
+                isEnabled: true,
+                isStarting: true,
+                target: target,
+                action: #selector(PreviewActionTarget.performAction(_:))
+            )
+        }
+        .frame(width: 220, height: 24)
+
+        NSViewPreview {
+            StartMenuItemView(
+                serverID: PorchlightPreviewData.activeServer.id,
+                title: "Kill",
+                busyTitle: "Killing...",
+                isEnabled: true,
+                isStarting: true,
+                target: target,
+                action: #selector(PreviewActionTarget.performAction(_:))
+            )
+        }
+        .frame(width: 220, height: 24)
+    }
+    .padding()
 }
