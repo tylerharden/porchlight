@@ -272,13 +272,14 @@ struct ServerListSectionHeader: View {
                     Image(systemName: trailingActionIcon)
                 }
                 .buttonStyle(.plain)
+                .padding(.trailing, 8)
             } else if let refresh {
                 Button(action: refresh) {
                     RefreshIcon(isRefreshing: isRefreshing)
                 }
                 .buttonStyle(.plain)
                 .disabled(isRefreshing)
-                .padding(.trailing, 4)
+                .padding(.trailing, 8)
             }
         }
     }
