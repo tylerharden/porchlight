@@ -41,7 +41,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.toolbarStyle = .unifiedCompact
         window.center()
         window.delegate = self
-        window.contentView = NSHostingView(rootView: SettingsView(viewModel: viewModel, settings: settings) { [weak window] title in
+        window.contentView = NSHostingView(rootView: MainWindowView(viewModel: viewModel, settings: settings) { [weak window] title in
             window?.title = title
         })
         window.isReleasedWhenClosed = false
