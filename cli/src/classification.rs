@@ -106,6 +106,10 @@ pub fn auto_group(
         return Some(group);
     }
 
+    if let Some(group) = app_bundle_group(command, working_directory, server_type, icon.clone()) {
+        return Some(group);
+    }
+
     let root = root.or_else(|| project_root(working_directory?))?;
     let kind = infer_project_kind(&root, command, server_type);
     let name = infer_project_name(&root).unwrap_or_else(|| titleize(root.file_name_text()));
@@ -164,6 +168,110 @@ fn rule_group(
             confidence: rule.confidence,
             source: "classification rule".to_string(),
         })
+}
+
+fn app_bundle_group(
+    command: &str,
+    working_directory: Option<&str>,
+    server_type: &str,
+    icon: Option<String>,
+) -> Option<ServerGroupMatch> {
+    let bundle = find_app_bundle_text(command)
+        .or_else(|| working_directory.and_then(find_app_bundle_text))?;
+    let (name, id) = app_bundle_identity(&bundle)?;
+
+    Some(ServerGroupMatch {
+        id,
+        name,
+        kind: "Application Service".to_string(),
+        role: "Background Service".to_string(),
+        color: None,
+        icon,
+        confidence: if server_type == "Unknown" { 0.7 } else { 0.78 },
+        source: "application bundle path".to_string(),
+    })
+}
+
+fn find_app_bundle_text(value: &str) -> Option<String> {
+    let end = value.to_lowercase().find(".app")? + ".app".len();
+    let prefix = &value[..end];
+    let start = prefix.rfind(" /").map(|index| index + 1).unwrap_or(0);
+    let bundle = prefix[start..].trim_matches(['\'', '"']).trim().to_string();
+
+    bundle.contains('/').then_some(bundle)
+}
+
+fn app_bundle_identity(bundle: &str) -> Option<(String, String)> {
+    let components = bundle
+        .split('/')
+        .filter(|component| !component.is_empty())
+        .collect::<Vec<_>>();
+    let app_index = components
+        .iter()
+        .position(|component| component.to_lowercase().ends_with(".app"))?;
+    let app_name = components[app_index].trim_end_matches(".app");
+    let parent_name = app_index
+        .checked_sub(1)
+        .and_then(|index| components.get(index));
+    let vendor_name = parent_name
+        .and_then(|_| app_index.checked_sub(2))
+        .and_then(|index| components.get(index))
+        .copied()
+        .filter(|value| !is_generic_path_component(value));
+
+    let base_name = parent_name
+        .copied()
+        .filter(|parent| should_prefer_parent_app_name(app_name, parent))
+        .unwrap_or(app_name);
+    let name = match vendor_name {
+        Some(vendor) if !same_normalized_name(vendor, base_name) => {
+            format!("{} {}", titleize(vendor), titleize(base_name))
+        }
+        _ => titleize(base_name),
+    };
+
+    Some((name.clone(), slugify(&name)))
+}
+
+fn should_prefer_parent_app_name(app_name: &str, parent_name: &str) -> bool {
+    let normalized_app = normalize_name(app_name);
+    let normalized_parent = normalize_name(parent_name);
+
+    !normalized_parent.is_empty()
+        && !is_generic_path_component(parent_name)
+        && (normalized_app.len() <= 4
+            || normalized_app.contains("helper")
+            || normalized_app.contains("service")
+            || normalized_app.contains("library")
+            || normalized_app.starts_with("cc"))
+}
+
+fn is_generic_path_component(value: &str) -> bool {
+    matches!(
+        normalize_name(value).as_str(),
+        "library"
+            | "applications"
+            | "application support"
+            | "contents"
+            | "macos"
+            | "resources"
+            | "helpers"
+            | "frameworks"
+    )
+}
+
+fn same_normalized_name(left: &str, right: &str) -> bool {
+    normalize_name(left) == normalize_name(right)
+}
+
+fn normalize_name(value: &str) -> String {
+    value
+        .trim_end_matches(".app")
+        .replace(['-', '_'], " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 pub fn infer_user_group(
@@ -846,7 +954,7 @@ mod tests {
     }
 
     #[test]
-    fn built_in_rules_group_adobe_creative_cloud_node_helper() {
+    fn app_bundle_fallback_groups_adobe_creative_cloud_node_helper() {
         let command = "/Library/Application Support/Adobe/Creative Cloud Libraries/CCLibrary.app/Contents/MacOS/../libs/node /Library/Application Support/Adobe/Creative Cloud Libraries/CCLibrary.app/Contents/MacOS/../js/server.js";
         let group = auto_group("node", command, None, "Node", None).unwrap();
 
@@ -854,7 +962,19 @@ mod tests {
         assert_eq!(group.name, "Adobe Creative Cloud Libraries");
         assert_eq!(group.kind, "Application Service");
         assert_eq!(group.role, "Background Service");
-        assert_eq!(group.source, "classification rule");
+        assert_eq!(group.source, "application bundle path");
+    }
+
+    #[test]
+    fn app_bundle_fallback_groups_regular_application_helpers() {
+        let command = "helper /Applications/Figma.app/Contents/MacOS/Figma --server";
+        let group = auto_group("Figma", command, None, "Unknown", None).unwrap();
+
+        assert_eq!(group.id, "figma");
+        assert_eq!(group.name, "Figma");
+        assert_eq!(group.kind, "Application Service");
+        assert_eq!(group.role, "Background Service");
+        assert_eq!(group.source, "application bundle path");
     }
 
     #[test]
