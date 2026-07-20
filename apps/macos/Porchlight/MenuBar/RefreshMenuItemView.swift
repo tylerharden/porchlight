@@ -38,7 +38,7 @@ final class RefreshMenuItemView: NSView {
         let isHighlighted = isEnabled && (isHovered || isPressed)
 
         if isHighlighted {
-            NSColor.selectedMenuItemColor.setFill()
+            NSColor.selectedContentBackgroundColor.setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
         }
 

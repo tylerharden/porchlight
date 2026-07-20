@@ -303,6 +303,16 @@ struct StatusMenuBuilder {
             ]
         ))
 
+        if server.pinned {
+            title.append(NSAttributedString(string: "  "))
+            title.append(NSAttributedString(
+                string: "📌",
+                attributes: [
+                    .font: NSFont.menuFont(ofSize: 0)
+                ]
+            ))
+        }
+
         return title
     }
 
