@@ -9,7 +9,6 @@ struct SettingsView: View {
     @State private var selectedTab = PorchlightTab.servers
     @State private var selectedServerID: LocalServer.ID?
     @State private var selectedGroupID: ServerGroup.ID?
-    @State private var isShowingHiddenServers = false
     @State private var isConfirmingReset = false
     @State private var isResetting = false
     private let repositoryURL = URL(string: "https://github.com/tylerharden/porchlight")!
@@ -20,14 +19,20 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            SettingsTabHeader(selectedTab: $selectedTab)
             Divider()
 
             switch selectedTab {
             case .servers:
-                serversPane
+                ServerListView(
+                    viewModel: viewModel,
+                    selectedServerID: $selectedServerID
+                )
             case .groups:
-                groupsPane
+                GroupsListView(
+                    groupStore: groupStore,
+                    selectedGroupID: $selectedGroupID
+                )
             case .settings:
                 scrollingPane { settingsPane }
             case .about:
@@ -62,109 +67,6 @@ struct SettingsView: View {
         }
     }
 
-    private var header: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                TabButton(tab: .servers, selectedTab: $selectedTab)
-                TabButton(tab: .groups, selectedTab: $selectedTab)
-                TabButton(tab: .settings, selectedTab: $selectedTab)
-                TabButton(tab: .about, selectedTab: $selectedTab)
-            }
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-    }
-
-    private var serversPane: some View {
-        VStack(spacing: 0) {
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal)
-                    .padding(.top)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            HSplitView {
-                List(selection: $selectedServerID) {
-                    Section {
-                        EmptyView()
-                            .frame(height: 0)
-                    } header: {
-                        ServerListSectionHeader(
-                            title: viewModel.hasActiveServers ? "\(viewModel.activeServerCount) Active" : "Servers",
-                            isRefreshing: viewModel.isRefreshing,
-                            refresh: { Task { await viewModel.refresh() } }
-                        )
-                    }
-
-                    ForEach(visibleServerSections) { section in
-                        Section {
-                            ForEach(section.servers) { server in
-                                serverRow(server, showsGroup: section.group == nil)
-                            }
-                        } header: {
-                            if let group = section.group {
-                                ServerGroupHeaderView(group: group)
-                            }
-                        }
-                    }
-
-                    if !hiddenServers.isEmpty {
-                        Section {
-                            if isShowingHiddenServers {
-                                ForEach(hiddenServers) { server in
-                                    serverRow(server, showsGroup: true)
-                                }
-                            }
-                        } header: {
-                            ServerListSectionHeader(
-                                title: "Show Hidden",
-                                isRefreshing: viewModel.isRefreshing,
-                                isExpanded: $isShowingHiddenServers,
-                                refresh: { Task { await viewModel.refresh() } }
-                            )
-                        }
-                    }
-                }
-                .listStyle(.sidebar)
-                .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
-                .overlay {
-                    if viewModel.isLoadingInitialServers {
-                        CompactLoadingState(title: "Loading Servers")
-                            .background(Color(nsColor: .windowBackgroundColor))
-                    } else if viewModel.servers.isEmpty {
-                        CompactEmptyState(
-                            title: "No Servers",
-                            systemImage: "lightbulb",
-                            description: "Start a local development server and it will appear here."
-                        )
-                        .background(Color(nsColor: .windowBackgroundColor))
-                    }
-                }
-
-                Group {
-                    if viewModel.isLoadingInitialServers {
-                        CompactLoadingState(title: "Loading Details")
-                    } else if let selectedServer {
-                        ServerDetailView(server: selectedServer, viewModel: viewModel)
-                    } else {
-                        CompactEmptyState(
-                            title: "Select a Server",
-                            systemImage: "lightbulb",
-                            description: "Choose a port to see details."
-                        )
-                    }
-                }
-            }
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear(perform: selectFallbackServer)
-        .onChange(of: viewModel.servers) { _, _ in
-            selectFallbackServer()
-        }
-    }
-
     private func scrollingPane<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         ScrollView {
             content()
@@ -175,196 +77,7 @@ struct SettingsView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private var selectedServer: LocalServer? {
-        guard let selectedServerID else { return nil }
-        return viewModel.servers.first { $0.id == selectedServerID }
-    }
 
-    private var visibleServerSections: [ServerSection] {
-        viewModel.servers.filter { !$0.hidden }.groupedSections()
-    }
-
-    private var hiddenServers: [LocalServer] {
-        viewModel.servers.filter(\.hidden)
-    }
-
-    private func serverRow(_ server: LocalServer, showsGroup: Bool) -> some View {
-        ServerRowView(
-            server: server,
-            isStarting: viewModel.startingServerIDs.contains(server.id),
-            showsGroup: showsGroup
-        )
-            .tag(server.id)
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                if server.hidden {
-                    Button("Unhide") {
-                        Task { await viewModel.unhide(server) }
-                    }
-                } else if server.isActive {
-                    Button("Turn Off", role: .destructive) {
-                        Task { await viewModel.kill(server) }
-                    }
-                } else {
-                    Button("Turn On") {
-                        Task { await viewModel.start(server) }
-                    }
-                    .disabled(server.resolvedStartCommand == nil)
-                }
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                if server.hidden {
-                    Button("Remove", role: .destructive) {
-                        Task { await viewModel.remove(server) }
-                    }
-                } else if server.pinned {
-                    Button("Unpin") {
-                        Task { await viewModel.togglePin(server) }
-                    }
-                } else {
-                    Button("Hide") {
-                        Task { await viewModel.hide(server) }
-                    }
-                    Button("Remove", role: .destructive) {
-                        Task { await viewModel.remove(server) }
-                    }
-                }
-            }
-    }
-
-    private func selectFallbackServer() {
-        let visibleServers = viewModel.servers.filter { !$0.hidden }
-        guard !visibleServers.isEmpty else {
-            selectedServerID = nil
-            return
-        }
-
-        if selectedServer == nil || selectedServer?.hidden == true {
-            selectedServerID = visibleServers.first?.id
-        }
-    }
-
-    private var groupsPane: some View {
-        VStack(spacing: 0) {
-            if let errorMessage = groupStore.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal)
-                    .padding(.top)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            HSplitView {
-                List(selection: $selectedGroupID) {
-                    Section {
-                        ForEach(visibleGroupSummaries) { group in
-                            Label {
-                                HStack {
-                                    Text(group.name)
-                                    Spacer()
-                                    Text(group.manual ? "Manual" : "Auto")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                            } icon: {
-                                GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
-                            }
-                            .tag(group.id)
-                        }
-                        .onDelete { offsets in
-                            let groups = visibleGroupSummaries
-                            let ids = offsets
-                                .compactMap { groups.indices.contains($0) ? groups[$0] : nil }
-                                .filter(\.manual)
-                                .map(\.id)
-                            ids.forEach(groupStore.deleteGroup)
-                            selectFallbackGroup()
-                        }
-                    } header: {
-                        ServerListSectionHeader(
-                            title: "Groups",
-                            isRefreshing: false,
-                            refresh: nil,
-                            trailingAction: { selectedGroupID = groupStore.addGroup() },
-                            trailingActionIcon: "plus"
-                        )
-                    }
-
-                    if !hiddenGroupSummaries.isEmpty {
-                        Section("Hidden") {
-                            ForEach(hiddenGroupSummaries) { group in
-                                Label {
-                                    HStack {
-                                        Text(group.name)
-                                        Spacer()
-                                        Text(group.manual ? "Manual" : "Auto")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } icon: {
-                                    GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
-                                }
-                                .tag(group.id)
-                            }
-                        }
-                    }
-                }
-                .listStyle(.sidebar)
-                .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
-                .overlay {
-                    if groupStore.isLoadingInitialGroups {
-                        CompactLoadingState(title: "Loading Groups")
-                            .background(Color(nsColor: .windowBackgroundColor))
-                    } else if groupStore.summaries.isEmpty {
-                        CompactEmptyState(
-                            title: "No Groups",
-                            systemImage: "folder.badge.plus",
-                            description: "Create a group or let Porchlight discover active groups automatically."
-                        )
-                        .background(Color(nsColor: .windowBackgroundColor))
-                    }
-                }
-
-                Group {
-                    if groupStore.isLoadingInitialGroups {
-                        CompactLoadingState(title: "Loading Details")
-                    } else if let selectedGroupID {
-                        GroupDetailView(groupID: selectedGroupID, store: groupStore)
-                    } else {
-                        CompactEmptyState(
-                            title: "Select a Group",
-                            systemImage: "folder",
-                            description: "Groups match servers without changing their type."
-                        )
-                    }
-                }
-            }
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear(perform: selectFallbackGroup)
-        .onChange(of: groupStore.groups) { _, _ in
-            selectFallbackGroup()
-        }
-    }
-
-    private func selectFallbackGroup() {
-        let visibleGroups = visibleGroupSummaries
-        guard !visibleGroups.isEmpty else {
-            selectedGroupID = nil
-            return
-        }
-
-        if selectedGroupID == nil || !visibleGroups.contains(where: { $0.id == selectedGroupID }) {
-            selectedGroupID = visibleGroups.first?.id
-        }
-    }
-
-    private var visibleGroupSummaries: [GroupSummary] {
-        groupStore.summaries.filter { !$0.hidden }
-    }
-
-    private var hiddenGroupSummaries: [GroupSummary] {
-        groupStore.summaries.filter(\.hidden)
-    }
 
     private var settingsPane: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -510,7 +223,7 @@ struct SettingsView: View {
     }
 }
 
-private struct ServerGroupHeaderView: View {
+struct ServerGroupHeaderView: View {
     let group: ServerGroupMatch
 
     var body: some View {
@@ -525,7 +238,7 @@ private struct ServerGroupHeaderView: View {
     }
 }
 
-private struct ServerListSectionHeader: View {
+struct ServerListSectionHeader: View {
     let title: String
     let isRefreshing: Bool
     var isExpanded: Binding<Bool>?
@@ -571,7 +284,7 @@ private struct ServerListSectionHeader: View {
     }
 }
 
-private struct RefreshIcon: View {
+struct RefreshIcon: View {
     let isRefreshing: Bool
     @State private var rotation = 0.0
 
@@ -595,7 +308,7 @@ private struct RefreshIcon: View {
     }
 }
 
-private struct CompactLoadingState: View {
+struct CompactLoadingState: View {
     let title: String
 
     var body: some View {
@@ -610,7 +323,7 @@ private struct CompactLoadingState: View {
     }
 }
 
-private enum PorchlightTab: String, CaseIterable, Identifiable {
+enum PorchlightTab: String, CaseIterable, Identifiable {
     case servers = "Servers"
     case groups = "Groups"
     case settings = "Settings"
@@ -628,7 +341,7 @@ private enum PorchlightTab: String, CaseIterable, Identifiable {
     }
 }
 
-private struct TabButton: View {
+struct TabButton: View {
     let tab: PorchlightTab
     @Binding var selectedTab: PorchlightTab
 
