@@ -346,6 +346,7 @@ fn parse_timestamp(timestamp: &str) -> Option<OffsetDateTime> {
 #[cfg(test)]
 mod tests {
     use super::{AppState, MAX_RECENT_SERVERS};
+    use crate::classification::ServerGroupMatch;
     use crate::config::Config;
     use crate::model::{LocalServer, ServerStatus};
 
@@ -513,6 +514,35 @@ mod tests {
             state.recent_servers[0].start_command.as_deref(),
             Some("python manage.py runserver")
         );
+    }
+
+    #[test]
+    fn recomputes_stale_recent_groups() {
+        let mut recent = fresh_recent("server", 8000, "/tmp/app");
+        recent.group = Some(ServerGroupMatch {
+            id: "deleted-group".into(),
+            name: "Deleted Group".into(),
+            kind: "Django".into(),
+            role: "Web App".into(),
+            color: Some("#7C5CFF".into()),
+            icon: None,
+            confidence: 1.0,
+            source: "manual group".into(),
+        });
+        let mut state = AppState {
+            recent_servers: vec![recent],
+            pinned_servers: vec![],
+        };
+        let config = Config {
+            show_automatic_groups: false,
+            ..Config::default()
+        };
+
+        let servers = state.merge_servers(vec![], &config);
+
+        assert_eq!(servers.len(), 1);
+        assert_eq!(servers[0].group, None);
+        assert_eq!(state.recent_servers[0].group, None);
     }
 
     fn fresh_recent(id: &str, port: u16, working_directory: &str) -> LocalServer {

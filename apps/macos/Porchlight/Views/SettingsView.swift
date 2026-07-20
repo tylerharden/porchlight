@@ -44,6 +44,9 @@ struct SettingsView: View {
         .onChange(of: selectedTab) { _, tab in
             onTabChange(tab.rawValue)
         }
+        .onReceive(NotificationCenter.default.publisher(for: ServerGroupStore.didChangeNotification)) { _ in
+            Task { await viewModel.refresh() }
+        }
         .confirmationDialog(
             "Reset Porchlight to defaults?",
             isPresented: $isConfirmingReset,

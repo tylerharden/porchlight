@@ -10,6 +10,7 @@ final class StatusBarController: NSObject {
     private var refreshTask: Task<Void, Never>?
     private var activeRefreshTask: Task<Void, Never>?
     private var settingsObserver: NSObjectProtocol?
+    private var groupObserver: NSObjectProtocol?
     private var startingServerIDs: Set<String> = []
     private var killingServerIDs: Set<String> = []
     private var isMenuOpen = false
@@ -32,6 +33,15 @@ final class StatusBarController: NSObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.applyMenuVisibility()
+            }
+        }
+        groupObserver = NotificationCenter.default.addObserver(
+            forName: ServerGroupStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.refresh(rebuildWhileOpen: true)
             }
         }
         refreshTask = Task { [weak self] in

@@ -58,6 +58,8 @@ struct ServerGroup: Codable, Identifiable, Hashable {
 @MainActor
 @Observable
 final class ServerGroupStore {
+    static let didChangeNotification = Notification.Name("PorchlightServerGroupsDidChange")
+
     private let cli = PorchlightCLI()
 
     var groups: [ServerGroup] = []
@@ -138,6 +140,7 @@ final class ServerGroupStore {
             do {
                 try await cli.replaceGroups(groups)
                 errorMessage = nil
+                NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
             } catch {
                 errorMessage = error.localizedDescription
             }
