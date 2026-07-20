@@ -23,18 +23,19 @@ PLAN.md              Product/implementation notes
 README.md            Project overview
 ```
 
-The CLI scans local listening processes, enriches them with process metadata, merges active servers with recent and pinned state, and returns JSON. Native apps should treat that JSON as the app contract.
+The CLI scans local listening processes, enriches them with process metadata, applies user-defined Groups before automatic classification, merges active servers with recent and pinned state, and returns JSON. Native apps should treat that JSON as the app contract.
 
 ## Features
 
 - Detect active local development servers on macOS.
 - Show port, process, command, working directory, status, and inferred type.
 - Infer common server types such as Django, Vite, Next.js, Rails, Uvicorn, Python, and Node.
-- Keep recent stopped servers visible for a bounded time.
+- Infer groups with name, kind, role, icon, confidence, and source evidence.
+- Keep recent stopped servers visible as bounded history.
 - Pin servers so they remain visible when stopped.
 - Kill, remove, pin, unpin, start, and open servers from the app.
 - Create user-defined Groups with colour, priority, command matching, and working-directory matching.
-- Group active and inactive/recent servers in the menu bar until they are removed.
+- Section active and inactive/recent servers by Group in the menu bar until they are removed.
 
 ## Repository Layout
 
@@ -80,6 +81,7 @@ cargo run -- kill <port-or-server-id>
 cargo run -- remove <port-or-server-id>
 cargo run -- pin <port-or-server-id>
 cargo run -- unpin <port-or-server-id>
+cargo run -- classify explain <port-or-server-id>
 ```
 
 Run tests:
@@ -122,14 +124,16 @@ Porchlight stores runtime state and user Groups outside the repo:
 
 ```text
 ~/.local/state/porchlight/state.json
+~/.config/porchlight/config.json
 ~/.config/porchlight/groups.json
+~/.config/porchlight/classification_rules.json
 ```
 
-`state.json` tracks recent and pinned servers. `groups.json` stores user-defined Groups edited from the macOS app.
+`state.json` tracks recent and pinned servers. `config.json` stores shared CLI/app defaults such as automatic groups. `groups.json` stores user-defined Groups edited from the macOS app via the CLI. `classification_rules.json` is optional and overrides built-in automatic rules.
 
 ## Development Notes
 
 - Keep server detection and JSON shape in the CLI.
 - Keep platform UI native-first.
-- Do not mutate built-in server type rules for user customisation; use Groups for user-owned classification.
+- Do not mutate built-in server type rules for user customisation; use Groups for user-owned classification and explicit grouping overrides.
 - macOS sandboxing is disabled so Porchlight can inspect local processes.
