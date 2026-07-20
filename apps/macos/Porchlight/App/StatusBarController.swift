@@ -35,7 +35,8 @@ final class StatusBarController: NSObject {
                 remove: #selector(remove(_:)),
                 hide: #selector(hide(_:)),
                 togglePin: #selector(togglePin(_:))
-            )
+            ),
+            showGroupIcons: settings.showGroupIcons
         )
     }
 

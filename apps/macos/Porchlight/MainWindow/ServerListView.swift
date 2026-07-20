@@ -39,7 +39,7 @@ struct ServerListView: View {
                             }
                         } header: {
                             if let group = section.group {
-                                ServerGroupHeaderView(group: group)
+                                ServerGroupHeaderView(group: group, showIcon: showGroupIcons)
                             }
                         }
                     }

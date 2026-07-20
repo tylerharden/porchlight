@@ -60,10 +60,13 @@ struct MainWindowView: View {
 
 struct ServerGroupHeaderView: View {
     let group: ServerGroupMatch
+    let showIcon: Bool
 
     var body: some View {
         HStack(spacing: 6) {
-            GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
+            if showIcon {
+                GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
+            }
             Text(group.name)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(Color(hex: group.color ?? "#8E8E93"))

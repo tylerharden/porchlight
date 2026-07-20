@@ -23,6 +23,7 @@ struct StatusMenuBuilder {
     let target: AnyObject
     let delegate: NSMenuDelegate?
     let actions: Actions
+    let showGroupIcons: Bool
 
     func menu(
         servers: [LocalServer],
@@ -109,7 +110,9 @@ struct StatusMenuBuilder {
     private func groupHeaderItem(for group: ServerGroupMatch) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.isEnabled = false
-        item.image = groupIconImage(group.icon)
+        if showGroupIcons {
+            item.image = groupIconImage(group.icon)
+        }
         item.attributedTitle = NSAttributedString(
             string: group.name,
             attributes: [
