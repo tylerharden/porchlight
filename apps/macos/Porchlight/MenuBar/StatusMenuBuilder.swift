@@ -139,24 +139,12 @@ struct StatusMenuBuilder {
     }
 
     private func refreshMenuItem() -> NSMenuItem {
-        let item = NSMenuItem()
-        item.view = RefreshMenuItemView(
-            title: "Refresh",
-            shortcut: "⌘R",
-            target: target,
-            action: actions.refresh
-        )
-        return item
+        menuItem(title: "Refresh", action: actions.refresh, keyEquivalent: "r")
     }
 
     private func killAllMenuItem(isEnabled: Bool) -> NSMenuItem {
-        let item = NSMenuItem()
-        item.view = RefreshMenuItemView(
-            title: "Kill All",
-            isEnabled: isEnabled,
-            target: target,
-            action: actions.killAll
-        )
+        let item = menuItem(title: "Kill All", action: actions.killAll)
+        item.isEnabled = isEnabled
         return item
     }
 
@@ -214,28 +202,14 @@ struct StatusMenuBuilder {
     }
 
     private func startMenuItem(for server: LocalServer, startingServerIDs: Set<String>) -> NSMenuItem {
-        let item = NSMenuItem()
-        item.view = StartMenuItemView(
-            serverID: server.id,
-            isEnabled: server.resolvedStartCommand != nil,
-            isStarting: startingServerIDs.contains(server.id),
-            target: target,
-            action: actions.startServer
-        )
+        let item = menuItem(title: "Start", action: actions.startServer, representedObject: server.id)
+        item.isEnabled = server.resolvedStartCommand != nil && !startingServerIDs.contains(server.id)
         return item
     }
 
     private func killMenuItem(for server: LocalServer, killingServerIDs: Set<String>) -> NSMenuItem {
-        let item = NSMenuItem()
-        item.view = StartMenuItemView(
-            serverID: server.id,
-            title: "Kill",
-            busyTitle: "Killing...",
-            isEnabled: true,
-            isStarting: killingServerIDs.contains(server.id),
-            target: target,
-            action: actions.killServer
-        )
+        let item = menuItem(title: "Kill", action: actions.killServer, representedObject: server.id)
+        item.isEnabled = !killingServerIDs.contains(server.id)
         return item
     }
 
