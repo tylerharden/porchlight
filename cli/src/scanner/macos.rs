@@ -1,9 +1,7 @@
 use super::{display_directory, ScannerError};
+use crate::classification::{auto_group, discover_project_icon, infer_user_group};
 use crate::config::Config;
-use crate::model::{
-    discover_project_icon, infer_server_group, infer_server_type_for_project, LocalServer,
-    ServerStatus,
-};
+use crate::model::{infer_server_type_for_project, LocalServer, ServerStatus};
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
@@ -64,8 +62,21 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
                 working_directory.as_deref(),
             )
         };
-        let group = infer_server_group(&process.command, working_directory.as_deref());
         let icon = working_directory.as_deref().and_then(discover_project_icon);
+        let group = infer_user_group(&process.command, working_directory.as_deref(), &server_type)
+            .or_else(|| {
+                if !config.show_automatic_groups {
+                    return None;
+                }
+
+                auto_group(
+                    &listener.process_name,
+                    &process.command,
+                    working_directory.as_deref(),
+                    &server_type,
+                    icon.clone(),
+                )
+            });
         let display_directory = working_directory.as_deref().map(display_directory);
 
         let start_command = process.command.clone();
@@ -77,8 +88,8 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             status: ServerStatus::Active,
             process_name: listener.process_name,
             server_type,
-            group,
             icon,
+            group,
             command: process.command,
             working_directory,
             display_directory,

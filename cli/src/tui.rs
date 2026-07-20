@@ -152,7 +152,7 @@ impl TuiApp {
             } else {
                 Style::default().fg(Color::DarkGray)
             };
-            let group = server
+            let group_label = server
                 .group
                 .as_ref()
                 .map(|group| group.name.as_str())
@@ -167,7 +167,7 @@ impl TuiApp {
                 Cell::from(status).style(status_style),
                 Cell::from(server.port.to_string()),
                 Cell::from(server.server_type.as_str()),
-                Cell::from(group),
+                Cell::from(group_label),
                 Cell::from(path),
                 Cell::from(pin),
             ])
@@ -221,6 +221,20 @@ impl TuiApp {
             lines.push(Line::from(vec![
                 Span::styled("Start: ", label_style()),
                 Span::raw(start_command.as_str()),
+            ]));
+        }
+
+        if let Some(group) = &server.group {
+            lines.push(Line::from(vec![
+                Span::styled("Group: ", label_style()),
+                Span::raw(format!(
+                    "{} • {} • {} ({:.0}% from {})",
+                    group.name,
+                    group.kind,
+                    group.role,
+                    group.confidence * 100.0,
+                    group.source
+                )),
             ]));
         }
 

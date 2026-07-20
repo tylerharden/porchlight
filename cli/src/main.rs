@@ -1,3 +1,4 @@
+mod classification;
 mod config;
 mod model;
 mod scanner;
@@ -5,9 +6,10 @@ mod state;
 mod tui;
 
 use clap::{Parser, Subcommand};
+use classification::{ServerGroup, ServerGroups};
 use config::Config;
-use model::{ServerGroup, ServerGroups};
 use state::StateError;
+use std::io::Read as _;
 
 #[derive(Parser)]
 #[command(name = "porchlight")]
@@ -24,11 +26,19 @@ enum Commands {
         /// Print machine-readable JSON.
         #[arg(long)]
         json: bool,
+        /// Hide automatically inferred groups. User-defined groups still apply.
+        #[arg(long = "no-auto-groups")]
+        no_auto_groups: bool,
     },
     /// Show configuration.
     Config {
         #[command(subcommand)]
         command: ConfigCommands,
+    },
+    /// Explain and validate server classification.
+    Classify {
+        #[command(subcommand)]
+        command: ClassifyCommands,
     },
     /// Manage server groups.
     Groups {
@@ -63,6 +73,31 @@ enum Commands {
 enum ConfigCommands {
     /// Show the effective configuration.
     Show,
+    /// Persist whether automatic groups should be shown by default.
+    SetAutoGroups {
+        /// true to show automatic groups, false to hide them.
+        value: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum ClassifyCommands {
+    /// Explain why a server is grouped. Target is a port or server id.
+    Explain {
+        /// Port number or server id from `porchlight list --json`.
+        target: String,
+        /// Print machine-readable JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// List effective built-in and user classification rules.
+    Rules {
+        /// Print machine-readable JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Validate user classification rules JSON.
+    ValidateRules,
 }
 
 #[derive(Subcommand)]
@@ -121,6 +156,12 @@ enum GroupCommands {
         /// Group id or exact group name.
         target: String,
     },
+    /// Replace all groups from JSON on stdin. Used by native apps.
+    Replace {
+        /// Read a JSON groups document from stdin.
+        #[arg(long)]
+        stdin: bool,
+    },
 }
 
 fn main() {
@@ -132,10 +173,19 @@ fn main() {
 
 fn run() -> Result<(), PorchlightError> {
     let cli = Cli::parse();
-    let config = Config::default();
+    let mut config = Config::load()?;
 
-    match cli.command.unwrap_or(Commands::List { json: false }) {
-        Commands::List { json } => {
+    match cli.command.unwrap_or(Commands::List {
+        json: false,
+        no_auto_groups: false,
+    }) {
+        Commands::List {
+            json,
+            no_auto_groups,
+        } => {
+            if no_auto_groups {
+                config.show_automatic_groups = false;
+            }
             let active_servers = scanner::scan(&config)?;
             let mut state = state::AppState::load()?;
             let servers = state.merge_servers(active_servers, &config);
@@ -169,7 +219,16 @@ fn run() -> Result<(), PorchlightError> {
                     serde_json::to_string_pretty(&config).expect("config serializes")
                 );
             }
+            ConfigCommands::SetAutoGroups { value } => {
+                let value = parse_bool(&value)?;
+                Config::set_show_automatic_groups(value)?;
+                println!(
+                    "Automatic groups {} by default.",
+                    if value { "enabled" } else { "disabled" }
+                );
+            }
         },
+        Commands::Classify { command } => handle_classify_command(command, &config)?,
         Commands::Groups { command } => handle_group_command(command)?,
         Commands::Kill { target } => {
             let killed = kill_matching_servers(&config, &target)?;
@@ -221,10 +280,78 @@ fn run() -> Result<(), PorchlightError> {
     Ok(())
 }
 
+fn handle_classify_command(
+    command: ClassifyCommands,
+    config: &Config,
+) -> Result<(), PorchlightError> {
+    match command {
+        ClassifyCommands::Explain { target, json } => {
+            let active_servers = scanner::scan(config)?;
+            let mut state = state::AppState::load()?;
+            let servers = state.merge_servers(active_servers, config);
+            state.save()?;
+            let target_port = target.parse::<u16>().ok();
+            let server = servers
+                .into_iter()
+                .find(|server| target_port == Some(server.port) || server.id == target)
+                .ok_or_else(|| PorchlightError::NoMatchingServer(target.clone()))?;
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&server).expect("server serializes")
+                );
+            } else if let Some(group) = server.group {
+                println!(
+                    "{}:{}",
+                    server.port,
+                    server.display_directory.as_deref().unwrap_or("unknown")
+                );
+                println!("Group: {}", group.name);
+                println!("Kind: {}", group.kind);
+                println!("Role: {}", group.role);
+                println!("Confidence: {:.0}%", group.confidence * 100.0);
+                println!("Source: {}", group.source);
+            } else {
+                println!("No group matched {}.", server.port);
+            }
+        }
+        ClassifyCommands::Rules { json } => {
+            let rules = classification::load_classification_rules()?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&rules).expect("classification rules serialize")
+                );
+            } else if rules.rules.is_empty() {
+                println!("No classification rules configured.");
+            } else {
+                for rule in rules.rules {
+                    println!(
+                        "{}\t{}\t{}\t{}\tpriority {}\tconfidence {:.0}%",
+                        rule.id,
+                        rule.name,
+                        rule.kind,
+                        rule.role,
+                        rule.priority,
+                        rule.confidence * 100.0
+                    );
+                }
+            }
+        }
+        ClassifyCommands::ValidateRules => {
+            classification::load_classification_rules()?;
+            println!("Classification rules are valid.");
+        }
+    }
+
+    Ok(())
+}
+
 fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
     match command {
         GroupCommands::List { json } => {
-            let groups = model::load_server_groups();
+            let groups = classification::load_server_groups();
             if json {
                 println!(
                     "{}",
@@ -256,7 +383,7 @@ fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
             working_directories,
             priority,
         } => {
-            let mut groups = model::load_server_groups();
+            let mut groups = classification::load_server_groups();
             let id = id.unwrap_or_else(|| slugify(&name));
             if id.is_empty() {
                 return Err(PorchlightError::InvalidGroup(
@@ -290,7 +417,7 @@ fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
             working_directories,
             priority,
         } => {
-            let mut groups = model::load_server_groups();
+            let mut groups = classification::load_server_groups();
             let group = find_group_mut(&mut groups, &target)?;
             if let Some(name) = name {
                 group.name = name;
@@ -315,7 +442,7 @@ fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
             println!("Updated group {id}.");
         }
         GroupCommands::Remove { target } => {
-            let mut groups = model::load_server_groups();
+            let mut groups = classification::load_server_groups();
             let before = groups.groups.len();
             groups
                 .groups
@@ -326,6 +453,24 @@ fn handle_group_command(command: GroupCommands) -> Result<(), PorchlightError> {
                 "Removed {} group{}.",
                 removed,
                 if removed == 1 { "" } else { "s" }
+            );
+        }
+        GroupCommands::Replace { stdin } => {
+            if !stdin {
+                return Err(PorchlightError::InvalidGroup(
+                    "groups replace currently requires --stdin".into(),
+                ));
+            }
+
+            let mut contents = String::new();
+            std::io::stdin().read_to_string(&mut contents)?;
+            let groups: ServerGroups = serde_json::from_str(&contents)
+                .map_err(|source| PorchlightError::InvalidGroup(source.to_string()))?;
+            save_groups(&groups)?;
+            println!(
+                "Replaced {} group{}.",
+                groups.groups.len(),
+                if groups.groups.len() == 1 { "" } else { "s" }
             );
         }
     }
@@ -345,8 +490,8 @@ fn find_group_mut<'a>(
 }
 
 fn save_groups(groups: &ServerGroups) -> Result<(), PorchlightError> {
-    model::save_server_groups(groups).map_err(|source| PorchlightError::GroupSaveFailed {
-        path: model::server_groups_path().display().to_string(),
+    classification::save_server_groups(groups).map_err(|source| PorchlightError::GroupSaveFailed {
+        path: classification::server_groups_path().display().to_string(),
         source,
     })
 }
@@ -373,6 +518,16 @@ fn slugify(value: &str) -> String {
 fn normalize_icon(icon: Option<String>) -> Option<String> {
     icon.map(|icon| icon.trim().to_string())
         .filter(|icon| !icon.is_empty())
+}
+
+fn parse_bool(value: &str) -> Result<bool, PorchlightError> {
+    match value.trim().to_lowercase().as_str() {
+        "true" | "yes" | "on" | "1" => Ok(true),
+        "false" | "no" | "off" | "0" => Ok(false),
+        _ => Err(PorchlightError::InvalidConfig(format!(
+            "expected true or false, got '{value}'"
+        ))),
+    }
 }
 
 fn kill_matching_servers(config: &Config, target: &str) -> Result<usize, PorchlightError> {
@@ -421,8 +576,16 @@ enum PorchlightError {
     State(#[from] StateError),
     #[error(transparent)]
     Tui(#[from] tui::TuiError),
+    #[error(transparent)]
+    Config(#[from] config::ConfigError),
+    #[error(transparent)]
+    Classification(#[from] classification::ClassificationError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
     #[error("invalid group: {0}")]
     InvalidGroup(String),
+    #[error("invalid config: {0}")]
+    InvalidConfig(String),
     #[error("no group matched '{0}'")]
     NoMatchingGroup(String),
     #[error("failed to save groups to {path}: {source}")]

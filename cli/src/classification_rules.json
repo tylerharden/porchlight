@@ -1,0 +1,51 @@
+[
+  {
+    "id": "plex",
+    "name": "Plex",
+    "kind": "Media Server",
+    "role": "Service",
+    "confidence": 0.9,
+    "priority": 100,
+    "match_any": [
+      ["plex media server"],
+      ["plexmediaserver"],
+      ["plex"]
+    ]
+  },
+  {
+    "id": "home-assistant",
+    "name": "Home Assistant",
+    "kind": "Home Automation",
+    "role": "Service",
+    "confidence": 0.9,
+    "priority": 100,
+    "match_any": [
+      ["home assistant"],
+      ["homeassistant"],
+      ["hass"]
+    ]
+  },
+  {
+    "id": "postgres",
+    "name": "Postgres",
+    "kind": "Database",
+    "role": "Service",
+    "confidence": 0.9,
+    "priority": 90,
+    "match_any": [
+      ["postgres"]
+    ]
+  },
+  {
+    "id": "redis",
+    "name": "Redis",
+    "kind": "Database",
+    "role": "Service",
+    "confidence": 0.9,
+    "priority": 90,
+    "match_any": [
+      ["redis-server"],
+      ["redis"]
+    ]
+  }
+]

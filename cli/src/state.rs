@@ -1,5 +1,6 @@
+use crate::classification::{auto_group, infer_user_group};
 use crate::config::Config;
-use crate::model::{infer_server_group, LocalServer, ServerStatus};
+use crate::model::{LocalServer, ServerStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -104,16 +105,26 @@ impl AppState {
                 server.icon = server
                     .icon
                     .or_else(|| previous.and_then(|server| server.icon.clone()));
+                server.group = server
+                    .group
+                    .or_else(|| previous.and_then(|server| server.group.clone()));
                 server
             })
             .collect::<Vec<_>>();
 
         if config.show_recents {
-            let cutoff = now - Duration::minutes(config.recent_ttl_minutes as i64);
             let mut stopped_recents = recent_by_key
                 .into_values()
                 .filter(|server| !active_keys.contains(&server_identity_key(server)))
-                .filter(|server| recent_is_fresh(server, cutoff) || server.pinned)
+                .filter(|server| {
+                    config
+                        .recent_ttl_minutes
+                        .map(|minutes| {
+                            recent_is_fresh(server, now - Duration::minutes(minutes as i64))
+                                || server.pinned
+                        })
+                        .unwrap_or(true)
+                })
                 .map(|mut server| {
                     server.status = ServerStatus::Recent;
                     server.pid = 0;
@@ -141,7 +152,24 @@ impl AppState {
 
         for server in &mut output {
             backfill_start_command(server);
-            server.group = infer_server_group(&server.command, server.working_directory.as_deref());
+            server.group = infer_user_group(
+                &server.command,
+                server.working_directory.as_deref(),
+                &server.server_type,
+            )
+            .or_else(|| {
+                if !config.show_automatic_groups {
+                    return None;
+                }
+
+                auto_group(
+                    &server.process_name,
+                    &server.command,
+                    server.working_directory.as_deref(),
+                    &server.server_type,
+                    server.icon.clone(),
+                )
+            });
         }
 
         self.recent_servers = output.iter().cloned().take(MAX_RECENT_SERVERS).collect();
@@ -503,8 +531,8 @@ mod tests {
             status,
             process_name: "python".into(),
             server_type: "Django".into(),
-            group: None,
             icon: None,
+            group: None,
             command: "python manage.py runserver".into(),
             working_directory: Some(working_directory.into()),
             display_directory: Some(working_directory.into()),

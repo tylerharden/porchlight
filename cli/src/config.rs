@@ -1,5 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Config {
@@ -8,10 +9,33 @@ pub struct Config {
     pub excluded_patterns: Vec<String>,
     pub refresh_interval_seconds: u64,
     pub show_recents: bool,
-    pub recent_ttl_minutes: u64,
+    pub show_automatic_groups: bool,
+    pub recent_ttl_minutes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+struct UserConfig {
+    show_automatic_groups: Option<bool>,
 }
 
 impl Config {
+    pub fn load() -> Result<Self, ConfigError> {
+        let mut config = Self::default();
+        let user_config = load_user_config()?;
+
+        if let Some(show_automatic_groups) = user_config.show_automatic_groups {
+            config.show_automatic_groups = show_automatic_groups;
+        }
+
+        Ok(config)
+    }
+
+    pub fn set_show_automatic_groups(value: bool) -> Result<(), ConfigError> {
+        let mut user_config = load_user_config()?;
+        user_config.show_automatic_groups = Some(value);
+        save_user_config(&user_config)
+    }
+
     pub fn excluded_port_set(&self) -> HashSet<u16> {
         self.excluded_ports.iter().copied().collect()
     }
@@ -49,6 +73,66 @@ impl Config {
     }
 }
 
+fn load_user_config() -> Result<UserConfig, ConfigError> {
+    let path = config_path();
+    if !path.exists() {
+        return Ok(UserConfig::default());
+    }
+
+    let contents = std::fs::read_to_string(&path).map_err(|source| ConfigError::Read {
+        path: path.display().to_string(),
+        source,
+    })?;
+
+    serde_json::from_str(&contents).map_err(|source| ConfigError::Parse {
+        path: path.display().to_string(),
+        source,
+    })
+}
+
+fn save_user_config(config: &UserConfig) -> Result<(), ConfigError> {
+    let path = config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|source| ConfigError::Write {
+            path: parent.display().to_string(),
+            source,
+        })?;
+    }
+
+    let contents = serde_json::to_string_pretty(config).expect("config serializes");
+    std::fs::write(&path, format!("{contents}\n")).map_err(|source| ConfigError::Write {
+        path: path.display().to_string(),
+        source,
+    })
+}
+
+pub fn config_path() -> PathBuf {
+    let home = std::env::var_os("HOME").unwrap_or_else(|| ".".into());
+    PathBuf::from(home)
+        .join(".config")
+        .join("porchlight")
+        .join("config.json")
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("failed to read config file {path}: {source}")]
+    Read {
+        path: String,
+        source: std::io::Error,
+    },
+    #[error("failed to parse config file {path}: {source}")]
+    Parse {
+        path: String,
+        source: serde_json::Error,
+    },
+    #[error("failed to write config file {path}: {source}")]
+    Write {
+        path: String,
+        source: std::io::Error,
+    },
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -81,7 +165,8 @@ impl Default for Config {
             ],
             refresh_interval_seconds: 5,
             show_recents: true,
-            recent_ttl_minutes: 120,
+            show_automatic_groups: true,
+            recent_ttl_minutes: None,
         }
     }
 }
@@ -98,7 +183,8 @@ mod tests {
             excluded_patterns: vec!["Code Helper".into()],
             refresh_interval_seconds: 5,
             show_recents: true,
-            recent_ttl_minutes: 120,
+            show_automatic_groups: true,
+            recent_ttl_minutes: None,
         };
 
         assert!(config.includes("node", "vite --host", Some("/Users/tyler/project"), 5173));
