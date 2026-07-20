@@ -36,14 +36,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             defer: false
         )
         window.minSize = NSSize(width: 680, height: 480)
-        window.title = "Servers"
+        window.title = "Porchlight"
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unifiedCompact
         window.center()
         window.delegate = self
-        window.contentView = NSHostingView(rootView: MainWindowView(viewModel: viewModel, settings: settings) { [weak window] title in
-            window?.title = title
-        })
+        window.contentView = NSHostingView(rootView: MainWindowView(viewModel: viewModel, settings: settings))
         window.isReleasedWhenClosed = false
         return window
     }

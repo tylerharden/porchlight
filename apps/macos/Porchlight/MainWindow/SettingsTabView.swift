@@ -4,8 +4,6 @@ import SwiftUI
 struct SettingsTabView: View {
     @Bindable var settings: AppSettings
     @State private var groupStore = ServerGroupStore()
-    @State private var selectedGroupID: ServerGroup.ID?
-    @State private var selectedServerID: LocalServer.ID?
     @State private var isConfirmingReset = false
     @State private var isResetting = false
     private let readmeURL = URL(string: "https://github.com/tylerharden/porchlight#readme")!
@@ -15,15 +13,12 @@ struct SettingsTabView: View {
             PreferenceRow(label: "General:") {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Refresh server list", isOn: $settings.autoRefresh)
-                    HStack(spacing: 12) {
-                        Toggle("", isOn: $settings.autoRefresh)
-                            .labelsHidden()
-                            .opacity(0)
-                            .disabled(true)
-                        Text("Every")
-                            .foregroundStyle(settings.autoRefresh ? .primary : .secondary)
-                        Stepper("\(Int(settings.refreshInterval)) seconds", value: $settings.refreshInterval, in: 1...30, step: 1)
-                            .disabled(!settings.autoRefresh)
+                    if settings.autoRefresh {
+                        HStack(spacing: 12) {
+                            Text("Every")
+                            Stepper("\(Int(settings.refreshInterval)) seconds", value: $settings.refreshInterval, in: 1...30, step: 1)
+                        }
+                        .padding(.leading, 20)
                     }
                     Toggle("Launch Porchlight at login", isOn: $settings.launchAtLogin)
                     if let errorMessage = settings.errorMessage {
@@ -112,8 +107,6 @@ struct SettingsTabView: View {
 
         await settings.resetToDefaults()
         await groupStore.load()
-        selectedGroupID = nil
-        selectedServerID = nil
     }
 
     private func open(_ url: URL) {
@@ -124,8 +117,6 @@ struct SettingsTabView: View {
 #Preview {
     SettingsTabView(settings: AppSettings())
 }
-
-// MARK: - Helper Views
 
 struct PreferenceRow<Content: View>: View {
     let label: String
