@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var selectedTab = PorchlightTab.servers
     @State private var selectedServerID: LocalServer.ID?
     @State private var selectedGroupID: ServerGroup.ID?
+    @State private var isShowingHiddenServers = false
     @State private var isConfirmingReset = false
     @State private var isResetting = false
     private let repositoryURL = URL(string: "https://github.com/tylerharden/porchlight")!
@@ -89,17 +90,11 @@ struct SettingsView: View {
                     Section {
                         EmptyView()
                     } header: {
-                        HStack {
-                            Text(viewModel.hasActiveServers ? "\(viewModel.activeServerCount) Active" : "Servers")
-                            Spacer()
-                            Button {
-                                Task { await viewModel.refresh() }
-                            } label: {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(viewModel.isRefreshing)
-                        }
+                        ServerListSectionHeader(
+                            title: viewModel.hasActiveServers ? "\(viewModel.activeServerCount) Active" : "Servers",
+                            isRefreshing: viewModel.isRefreshing,
+                            refresh: { Task { await viewModel.refresh() } }
+                        )
                     }
 
                     ForEach(visibleServerSections) { section in
@@ -115,17 +110,29 @@ struct SettingsView: View {
                     }
 
                     if !hiddenServers.isEmpty {
-                        Section("Hidden") {
-                            ForEach(hiddenServers) { server in
-                                serverRow(server, showsGroup: true)
+                        Section {
+                            if isShowingHiddenServers {
+                                ForEach(hiddenServers) { server in
+                                    serverRow(server, showsGroup: true)
+                                }
                             }
+                        } header: {
+                            ServerListSectionHeader(
+                                title: "Show Hidden",
+                                isRefreshing: viewModel.isRefreshing,
+                                isExpanded: $isShowingHiddenServers,
+                                refresh: { Task { await viewModel.refresh() } }
+                            )
                         }
                     }
                 }
                 .listStyle(.sidebar)
                 .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
                 .overlay {
-                    if viewModel.servers.isEmpty {
+                    if viewModel.isLoadingInitialServers {
+                        CompactLoadingState(title: "Loading Servers")
+                            .background(Color(nsColor: .windowBackgroundColor))
+                    } else if viewModel.servers.isEmpty {
                         CompactEmptyState(
                             title: "No Servers",
                             systemImage: "lightbulb",
@@ -136,7 +143,9 @@ struct SettingsView: View {
                 }
 
                 Group {
-                    if let selectedServer {
+                    if viewModel.isLoadingInitialServers {
+                        CompactLoadingState(title: "Loading Details")
+                    } else if let selectedServer {
                         ServerDetailView(server: selectedServer, viewModel: viewModel)
                     } else {
                         CompactEmptyState(
@@ -304,7 +313,10 @@ struct SettingsView: View {
                 .listStyle(.sidebar)
                 .frame(minWidth: 180, idealWidth: 230, maxWidth: 280)
                 .overlay {
-                    if groupStore.summaries.isEmpty {
+                    if groupStore.isLoadingInitialGroups {
+                        CompactLoadingState(title: "Loading Groups")
+                            .background(Color(nsColor: .windowBackgroundColor))
+                    } else if groupStore.summaries.isEmpty {
                         CompactEmptyState(
                             title: "No Groups",
                             systemImage: "folder.badge.plus",
@@ -315,7 +327,9 @@ struct SettingsView: View {
                 }
 
                 Group {
-                    if let selectedGroupID {
+                    if groupStore.isLoadingInitialGroups {
+                        CompactLoadingState(title: "Loading Details")
+                    } else if let selectedGroupID {
                         GroupDetailView(groupID: selectedGroupID, store: groupStore)
                     } else {
                         CompactEmptyState(
@@ -510,6 +524,80 @@ private struct ServerGroupHeaderView: View {
         }
         .textCase(nil)
         .padding(.top, 4)
+    }
+}
+
+private struct ServerListSectionHeader: View {
+    let title: String
+    let isRefreshing: Bool
+    var isExpanded: Binding<Bool>?
+    let refresh: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let isExpanded {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) {
+                        isExpanded.wrappedValue.toggle()
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+
+            Text(title)
+
+            Spacer()
+
+            Button(action: refresh) {
+                RefreshIcon(isRefreshing: isRefreshing)
+            }
+            .buttonStyle(.plain)
+            .disabled(isRefreshing)
+        }
+    }
+}
+
+private struct RefreshIcon: View {
+    let isRefreshing: Bool
+    @State private var rotation = 0.0
+
+    var body: some View {
+        Image(systemName: "arrow.clockwise")
+            .rotationEffect(.degrees(rotation))
+            .onAppear(perform: updateRotation)
+            .onChange(of: isRefreshing) { _, _ in updateRotation() }
+    }
+
+    private func updateRotation() {
+        if isRefreshing {
+            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                rotation += 360
+            }
+        } else {
+            withAnimation(.linear(duration: 0.12)) {
+                rotation = 0
+            }
+        }
+    }
+}
+
+private struct CompactLoadingState: View {
+    let title: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.small)
+            Text(title)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

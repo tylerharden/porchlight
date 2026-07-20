@@ -23,6 +23,16 @@ struct GroupDetailView: View {
                             .font(.title2.weight(.semibold))
                     }
 
+                    HStack(spacing: 8) {
+                        Button(summary?.hidden == true ? "Show Group Servers" : "Hide Group Servers") {
+                            Task { await store.setGroupHidden(id: groupID, hidden: !(summary?.hidden ?? false)) }
+                        }
+
+                        Button("Delete Group", role: .destructive) {
+                            store.deleteGroup(id: groupID)
+                        }
+                    }
+
                     Divider()
 
                     DetailEditorRow(label: "Name") {
@@ -88,15 +98,6 @@ struct GroupDetailView: View {
                         }
                     }
 
-                    Divider()
-
-                    Button(summary?.hidden == true ? "Show Group Servers" : "Hide Group Servers") {
-                        Task { await store.setGroupHidden(id: groupID, hidden: !(summary?.hidden ?? false)) }
-                    }
-
-                    Button("Delete Group", role: .destructive) {
-                        store.deleteGroup(id: groupID)
-                    }
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -153,9 +154,9 @@ struct AutomaticGroupDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .center, spacing: 10) {
-                    GroupIconView(icon: summary.icon, color: summary.color ?? "#8E8E93", size: 16)
-                    VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .center, spacing: 10) {
+                        GroupIconView(icon: summary.icon, color: summary.color ?? "#8E8E93", size: 16)
+                        VStack(alignment: .leading, spacing: 2) {
                         Text(summary.name)
                             .font(.title2.weight(.semibold))
                         Text("Automatic Group")
@@ -165,11 +166,37 @@ struct AutomaticGroupDetailView: View {
                             Text("Hidden")
                                 .font(.callout.weight(.semibold))
                                 .foregroundStyle(.secondary)
+                            }
                         }
                     }
-                }
 
-                Divider()
+                    HStack(spacing: 8) {
+                        Button(summary.hidden ? "Show Group Servers" : "Hide Group Servers") {
+                            guard !isTogglingHidden else { return }
+                            isTogglingHidden = true
+                            Task {
+                                await toggleHidden()
+                                isTogglingHidden = false
+                            }
+                        }
+                        .disabled(isTogglingHidden)
+
+                        Button("Customize") {
+                            guard !isCustomizing else { return }
+                            isCustomizing = true
+                            Task {
+                                await customize()
+                                isCustomizing = false
+                            }
+                        }
+                        .disabled(isCustomizing)
+                    }
+
+                    Text("Customize saves this discovered group as a manual group, then lets you edit its name, colour, icon, and match rules.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    Divider()
 
                 SummaryRow(label: "Kind", value: summary.kind ?? "Unknown")
                 SummaryRow(label: "Role", value: summary.role ?? "Service")
@@ -199,32 +226,6 @@ struct AutomaticGroupDetailView: View {
                         }
                     }
                 }
-
-                Divider()
-
-                Button(summary.hidden ? "Show Group Servers" : "Hide Group Servers") {
-                    guard !isTogglingHidden else { return }
-                    isTogglingHidden = true
-                    Task {
-                        await toggleHidden()
-                        isTogglingHidden = false
-                    }
-                }
-                .disabled(isTogglingHidden)
-
-                Button("Customize") {
-                    guard !isCustomizing else { return }
-                    isCustomizing = true
-                    Task {
-                        await customize()
-                        isCustomizing = false
-                    }
-                }
-                .disabled(isCustomizing)
-
-                Text("Customize saves this discovered group as a manual group, then lets you edit its name, colour, icon, and match rules.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)

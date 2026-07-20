@@ -161,6 +161,12 @@ final class ServerGroupStore {
     var summaries: [GroupSummary] = []
     var errorMessage: String?
 
+    var hasLoadedGroups = false
+
+    var isLoadingInitialGroups: Bool {
+        !hasLoadedGroups && errorMessage == nil
+    }
+
     func load() async {
         do {
             groups = try await cli.listGroups()
@@ -168,6 +174,10 @@ final class ServerGroupStore {
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
+        }
+
+        if !hasLoadedGroups {
+            hasLoadedGroups = true
         }
     }
 

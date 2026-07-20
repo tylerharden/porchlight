@@ -11,6 +11,7 @@ final class ServerListViewModel {
     var servers: [LocalServer] = []
     var errorMessage: String?
     var isRefreshing = false
+    var hasLoadedServers = false
     var killingServerIDs: Set<String> = []
     var startingServerIDs: Set<String> = []
     var lastRefreshedAt: Date?
@@ -25,6 +26,10 @@ final class ServerListViewModel {
 
     var activeServerCount: Int {
         servers.filter { $0.isActive }.count
+    }
+
+    var isLoadingInitialServers: Bool {
+        !hasLoadedServers && errorMessage == nil
     }
 
     func start() async {
@@ -54,6 +59,10 @@ final class ServerListViewModel {
             lastRefreshedAt = Date()
         } catch {
             errorMessage = error.localizedDescription
+        }
+
+        if !hasLoadedServers {
+            hasLoadedServers = true
         }
     }
 
