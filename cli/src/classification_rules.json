@@ -1,5 +1,18 @@
 [
   {
+    "id": "adobe-creative-cloud-libraries",
+    "name": "Adobe Creative Cloud Libraries",
+    "kind": "Application Service",
+    "role": "Background Service",
+    "confidence": 0.95,
+    "priority": 120,
+    "match_any": [
+      ["adobe", "creative cloud libraries", "cclibrary.app"],
+      ["adobe", "creative cloud libraries", "js/server.js"],
+      ["cclibrary.app", "js/server.js"]
+    ]
+  },
+  {
     "id": "plex",
     "name": "Plex",
     "kind": "Media Server",

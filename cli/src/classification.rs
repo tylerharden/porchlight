@@ -846,6 +846,18 @@ mod tests {
     }
 
     #[test]
+    fn built_in_rules_group_adobe_creative_cloud_node_helper() {
+        let command = "/Library/Application Support/Adobe/Creative Cloud Libraries/CCLibrary.app/Contents/MacOS/../libs/node /Library/Application Support/Adobe/Creative Cloud Libraries/CCLibrary.app/Contents/MacOS/../js/server.js";
+        let group = auto_group("node", command, None, "Node", None).unwrap();
+
+        assert_eq!(group.id, "adobe-creative-cloud-libraries");
+        assert_eq!(group.name, "Adobe Creative Cloud Libraries");
+        assert_eq!(group.kind, "Application Service");
+        assert_eq!(group.role, "Background Service");
+        assert_eq!(group.source, "classification rule");
+    }
+
+    #[test]
     fn discovers_common_project_icon_paths() {
         let root =
             std::env::temp_dir().join(format!("porchlight-icon-test-{}", std::process::id()));
