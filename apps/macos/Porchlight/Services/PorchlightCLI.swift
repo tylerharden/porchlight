@@ -42,6 +42,10 @@ struct PorchlightCLI {
         _ = try await run(arguments: ["config", "set-auto-groups", enabled ? "true" : "false"])
     }
 
+    func reset() async throws {
+        _ = try await run(arguments: ["reset"])
+    }
+
     func killServer(_ server: LocalServer) async throws {
         _ = try await run(arguments: ["kill", server.id])
     }

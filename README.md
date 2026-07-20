@@ -82,6 +82,8 @@ cargo run -- remove <port-or-server-id>
 cargo run -- pin <port-or-server-id>
 cargo run -- unpin <port-or-server-id>
 cargo run -- classify explain <port-or-server-id>
+cargo run -- config set-recent-ttl off
+cargo run -- reset
 ```
 
 Run tests:

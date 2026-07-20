@@ -15,9 +15,12 @@ porchlight groups edit frontend --name Web --priority 20
 porchlight groups remove frontend
 porchlight config show
 porchlight config set-auto-groups false
+porchlight config set-recent-ttl off
+porchlight config set-recent-ttl 240
 porchlight classify explain <port-or-server-id>
 porchlight classify rules
 porchlight classify validate-rules
+porchlight reset
 porchlight kill <port-or-server-id>
 porchlight remove <port-or-server-id>
 porchlight pin <port-or-server-id>
@@ -267,7 +270,9 @@ Runtime state is stored in:
 ~/.local/state/porchlight/state.json
 ```
 
-State contains recent and pinned servers. Porchlight keeps the latest 50 recent servers by default; time-based expiry is disabled unless `recent_ttl_minutes` is explicitly configured. Writes use unique temporary paths to avoid refresh races between the app window and menu bar polling.
+State contains recent and pinned servers. Porchlight keeps the latest 50 recent servers by default; time-based expiry is disabled unless `recent_ttl_minutes` is explicitly configured with `porchlight config set-recent-ttl <minutes>`. Use `porchlight config set-recent-ttl off` to return to count-only history. Writes use unique temporary paths to avoid refresh races between the app window and menu bar polling.
+
+Use `porchlight reset` to remove saved state, config, Groups, and user classification rules. The macOS app exposes the same action in Settings as **Reset Porchlight to Defaults**.
 
 ## Tests
 

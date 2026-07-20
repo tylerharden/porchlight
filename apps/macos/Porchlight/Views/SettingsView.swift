@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var selectedTab = PorchlightTab.servers
     @State private var selectedServerID: LocalServer.ID?
     @State private var selectedGroupID: ServerGroup.ID?
+    @State private var isConfirmingReset = false
+    @State private var isResetting = false
     private let repositoryURL = URL(string: "https://github.com/tylerharden/porchlight")!
     private let readmeURL = URL(string: "https://github.com/tylerharden/porchlight#readme")!
     private let issuesURL = URL(string: "https://github.com/tylerharden/porchlight/issues/new")!
@@ -41,6 +43,18 @@ struct SettingsView: View {
         }
         .onChange(of: selectedTab) { _, tab in
             onTabChange(tab.rawValue)
+        }
+        .confirmationDialog(
+            "Reset Porchlight to defaults?",
+            isPresented: $isConfirmingReset,
+            titleVisibility: .visible
+        ) {
+            Button("Reset Porchlight", role: .destructive) {
+                Task { await resetPorchlight() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes saved server history, pins, groups, classification rules, and Porchlight settings.")
         }
     }
 
@@ -314,8 +328,36 @@ struct SettingsView: View {
                     Button("Show me how") { open(readmeURL) }
                 }
             }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            PreferenceRow(label: "Reset:") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Button("Reset Porchlight to Defaults", role: .destructive) {
+                        isConfirmingReset = true
+                    }
+                    .disabled(isResetting)
+
+                    Text("Removes saved server history, pins, groups, classification rules, and settings.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .toggleStyle(.checkbox)
+    }
+
+    private func resetPorchlight() async {
+        guard !isResetting else { return }
+        isResetting = true
+        defer { isResetting = false }
+
+        await settings.resetToDefaults()
+        await groupStore.load()
+        selectedGroupID = nil
+        selectedServerID = nil
+        await viewModel.refresh()
     }
 
     private var aboutPane: some View {

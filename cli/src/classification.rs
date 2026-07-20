@@ -1,3 +1,4 @@
+use crate::model::LocalServer;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -188,6 +189,30 @@ pub fn infer_user_group(
 
             manual_group_match(group.id, group.name, group.color, icon, server_type)
         })
+}
+
+pub fn infer_server_group(
+    server: &LocalServer,
+    show_automatic_groups: bool,
+) -> Option<ServerGroupMatch> {
+    infer_user_group(
+        &server.command,
+        server.working_directory.as_deref(),
+        &server.server_type,
+    )
+    .or_else(|| {
+        if !show_automatic_groups {
+            return None;
+        }
+
+        auto_group(
+            &server.process_name,
+            &server.command,
+            server.working_directory.as_deref(),
+            &server.server_type,
+            server.icon.clone(),
+        )
+    })
 }
 
 pub fn discover_project_icon(working_directory: &str) -> Option<String> {

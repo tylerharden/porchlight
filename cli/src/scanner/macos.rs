@@ -1,5 +1,5 @@
 use super::{display_directory, ScannerError};
-use crate::classification::{auto_group, discover_project_icon, infer_user_group};
+use crate::classification::{discover_project_icon, infer_server_group};
 use crate::config::Config;
 use crate::model::{infer_server_type_for_project, LocalServer, ServerStatus};
 use std::collections::HashSet;
@@ -63,25 +63,11 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             )
         };
         let icon = working_directory.as_deref().and_then(discover_project_icon);
-        let group = infer_user_group(&process.command, working_directory.as_deref(), &server_type)
-            .or_else(|| {
-                if !config.show_automatic_groups {
-                    return None;
-                }
-
-                auto_group(
-                    &listener.process_name,
-                    &process.command,
-                    working_directory.as_deref(),
-                    &server_type,
-                    icon.clone(),
-                )
-            });
         let display_directory = working_directory.as_deref().map(display_directory);
 
         let start_command = process.command.clone();
 
-        servers.push(LocalServer {
+        let mut server = LocalServer {
             id: server_id(listener.port, working_directory.as_deref()),
             port: listener.port,
             pid: listener.pid,
@@ -89,7 +75,7 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             process_name: listener.process_name,
             server_type,
             icon,
-            group,
+            group: None,
             command: process.command,
             working_directory,
             display_directory,
@@ -97,7 +83,9 @@ pub fn scan(config: &Config) -> Result<Vec<LocalServer>, ScannerError> {
             pinned: false,
             last_seen_at: None,
             start_command: Some(start_command),
-        });
+        };
+        server.group = infer_server_group(&server, config.show_automatic_groups);
+        servers.push(server);
     }
 
     servers.sort_by_key(|server| (server.port, server.pid));

@@ -16,6 +16,7 @@ pub struct Config {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 struct UserConfig {
     show_automatic_groups: Option<bool>,
+    recent_ttl_minutes: Option<u64>,
 }
 
 impl Config {
@@ -26,6 +27,7 @@ impl Config {
         if let Some(show_automatic_groups) = user_config.show_automatic_groups {
             config.show_automatic_groups = show_automatic_groups;
         }
+        config.recent_ttl_minutes = user_config.recent_ttl_minutes;
 
         Ok(config)
     }
@@ -33,6 +35,12 @@ impl Config {
     pub fn set_show_automatic_groups(value: bool) -> Result<(), ConfigError> {
         let mut user_config = load_user_config()?;
         user_config.show_automatic_groups = Some(value);
+        save_user_config(&user_config)
+    }
+
+    pub fn set_recent_ttl_minutes(value: Option<u64>) -> Result<(), ConfigError> {
+        let mut user_config = load_user_config()?;
+        user_config.recent_ttl_minutes = value;
         save_user_config(&user_config)
     }
 

@@ -65,6 +65,8 @@ enum Commands {
         /// Port number or server id from `porchlight list --json`.
         target: String,
     },
+    /// Reset Porchlight state, config, groups, and user classification rules.
+    Reset,
     /// Open the interactive terminal UI.
     Tui,
 }
@@ -76,6 +78,11 @@ enum ConfigCommands {
     /// Persist whether automatic groups should be shown by default.
     SetAutoGroups {
         /// true to show automatic groups, false to hide them.
+        value: String,
+    },
+    /// Persist optional time-based recent server expiry. Use "off" for count-only history.
+    SetRecentTtl {
+        /// Number of minutes, or off to disable time-based expiry.
         value: String,
     },
 }
@@ -227,6 +234,14 @@ fn run() -> Result<(), PorchlightError> {
                     if value { "enabled" } else { "disabled" }
                 );
             }
+            ConfigCommands::SetRecentTtl { value } => {
+                let value = parse_optional_minutes(&value)?;
+                Config::set_recent_ttl_minutes(value)?;
+                match value {
+                    Some(minutes) => println!("Recent servers expire after {minutes} minutes."),
+                    None => println!("Recent servers use count-only history."),
+                }
+            }
         },
         Commands::Classify { command } => handle_classify_command(command, &config)?,
         Commands::Groups { command } => handle_group_command(command)?,
@@ -273,6 +288,10 @@ fn run() -> Result<(), PorchlightError> {
                     "No matching server to unpin."
                 }
             );
+        }
+        Commands::Reset => {
+            reset_porchlight()?;
+            println!("Reset Porchlight to defaults.");
         }
         Commands::Tui => tui::run(config)?,
     }
@@ -527,6 +546,31 @@ fn parse_bool(value: &str) -> Result<bool, PorchlightError> {
         _ => Err(PorchlightError::InvalidConfig(format!(
             "expected true or false, got '{value}'"
         ))),
+    }
+}
+
+fn parse_optional_minutes(value: &str) -> Result<Option<u64>, PorchlightError> {
+    match value.trim().to_lowercase().as_str() {
+        "off" | "none" | "disabled" | "0" => Ok(None),
+        value => value.parse::<u64>().map(Some).map_err(|_| {
+            PorchlightError::InvalidConfig(format!("expected minutes or off, got '{value}'"))
+        }),
+    }
+}
+
+fn reset_porchlight() -> Result<(), PorchlightError> {
+    state::reset_state()?;
+    remove_file_if_exists(config::config_path())?;
+    remove_file_if_exists(classification::server_groups_path())?;
+    remove_file_if_exists(classification::classification_rules_path())?;
+    Ok(())
+}
+
+fn remove_file_if_exists(path: std::path::PathBuf) -> std::io::Result<()> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(source),
     }
 }
 

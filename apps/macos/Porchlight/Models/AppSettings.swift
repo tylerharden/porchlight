@@ -5,6 +5,7 @@ import ServiceManagement
 @Observable
 final class AppSettings {
     static let didChangeNotification = Notification.Name("PorchlightAppSettingsDidChange")
+    private var isResetting = false
 
     var autoRefresh: Bool {
         didSet { persistAndNotify("autoRefresh", autoRefresh) }
@@ -45,16 +46,20 @@ final class AppSettings {
     }
 
     private func persistAndNotify(_ key: String, _ value: Bool) {
+        guard !isResetting else { return }
         UserDefaults.standard.set(value, forKey: key)
         notifyChanged()
     }
 
     private func persistAndNotify(_ key: String, _ value: Double) {
+        guard !isResetting else { return }
         UserDefaults.standard.set(value, forKey: key)
         notifyChanged()
     }
 
     private func updateLaunchAtLogin() {
+        guard !isResetting else { return }
+
         do {
             if launchAtLogin {
                 try SMAppService.mainApp.register()
@@ -74,6 +79,8 @@ final class AppSettings {
     }
 
     private func persistAutomaticGroupsToCLI() {
+        guard !isResetting else { return }
+
         let showAutomaticGroups = showAutomaticGroups
         Task {
             do {
@@ -82,6 +89,37 @@ final class AppSettings {
             } catch {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    func resetToDefaults() async {
+        do {
+            try await PorchlightCLI().reset()
+            try? await SMAppService.mainApp.unregister()
+
+            isResetting = true
+            autoRefresh = true
+            refreshInterval = 2
+            launchAtLogin = false
+            hideDockIcon = true
+            hideMenuIconWhenEmpty = false
+            showAutomaticGroups = true
+            isResetting = false
+
+            [
+                "autoRefresh",
+                "refreshInterval",
+                "hideDockIcon",
+                "hideMenuIconWhenEmpty",
+                "showAutomaticGroups",
+            ].forEach { UserDefaults.standard.removeObject(forKey: $0) }
+
+            errorMessage = nil
+            notifyChanged()
+        } catch {
+            isResetting = false
+            errorMessage = error.localizedDescription
+            notifyChanged()
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::classification::{auto_group, infer_user_group};
+use crate::classification::infer_server_group;
 use crate::config::Config;
 use crate::model::{LocalServer, ServerStatus};
 use serde::{Deserialize, Serialize};
@@ -152,24 +152,7 @@ impl AppState {
 
         for server in &mut output {
             backfill_start_command(server);
-            server.group = infer_user_group(
-                &server.command,
-                server.working_directory.as_deref(),
-                &server.server_type,
-            )
-            .or_else(|| {
-                if !config.show_automatic_groups {
-                    return None;
-                }
-
-                auto_group(
-                    &server.process_name,
-                    &server.command,
-                    server.working_directory.as_deref(),
-                    &server.server_type,
-                    server.icon.clone(),
-                )
-            });
+            server.group = infer_server_group(server, config.show_automatic_groups);
         }
 
         self.recent_servers = output.iter().cloned().take(MAX_RECENT_SERVERS).collect();
@@ -251,6 +234,21 @@ fn backfill_unknown_active_locations(
         active.working_directory = previous.working_directory.clone();
         active.display_directory = previous.display_directory.clone();
         active.icon = active.icon.clone().or_else(|| previous.icon.clone());
+    }
+}
+
+pub fn reset_state() -> Result<(), StateError> {
+    remove_file_if_exists(state_path()).map_err(|source| StateError::Write {
+        path: state_path(),
+        source,
+    })
+}
+
+fn remove_file_if_exists(path: PathBuf) -> io::Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(source) if source.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(source),
     }
 }
 

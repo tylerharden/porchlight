@@ -58,12 +58,14 @@ struct ServerGroup: Codable, Identifiable, Hashable {
 @MainActor
 @Observable
 final class ServerGroupStore {
+    private let cli = PorchlightCLI()
+
     var groups: [ServerGroup] = []
     var errorMessage: String?
 
     func load() async {
         do {
-            groups = try await PorchlightCLI().listGroups()
+            groups = try await cli.listGroups()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -131,9 +133,10 @@ final class ServerGroupStore {
 
     private func save() {
         let groups = groups
+        let cli = cli
         Task {
             do {
-                try await PorchlightCLI().replaceGroups(groups)
+                try await cli.replaceGroups(groups)
                 errorMessage = nil
             } catch {
                 errorMessage = error.localizedDescription
