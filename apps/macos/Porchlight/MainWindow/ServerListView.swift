@@ -21,6 +21,7 @@ struct ServerListView: View {
                     Section {
                         EmptyView()
                             .frame(height: 0)
+                            .listRowSeparator(.hidden)
                     } header: {
                         ServerListSectionHeader(
                             title: viewModel.hasActiveServers ? "\(viewModel.activeServerCount) Active" : "Servers",
@@ -28,6 +29,7 @@ struct ServerListView: View {
                             refresh: { Task { await viewModel.refresh() } }
                         )
                     }
+                    .listSectionSeparator(.hidden)
 
                     ForEach(visibleServerSections) { section in
                         Section {
@@ -53,7 +55,7 @@ struct ServerListView: View {
                                 title: "Show Hidden",
                                 isRefreshing: viewModel.isRefreshing,
                                 isExpanded: $isShowingHiddenServers,
-                                refresh: { Task { await viewModel.refresh() } }
+                                refresh: nil
                             )
                         }
                     }
