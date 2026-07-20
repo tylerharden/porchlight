@@ -4,6 +4,7 @@ import SwiftUI
 struct GroupsListView: View {
     @Bindable var groupStore: ServerGroupStore
     @Binding var selectedGroupID: ServerGroup.ID?
+    let showGroupIcons: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +20,7 @@ struct GroupsListView: View {
                 List(selection: $selectedGroupID) {
                     Section {
                         ForEach(visibleGroupSummaries) { group in
-                            GroupRowView(group: group)
+                            GroupRowView(group: group, showIcon: showGroupIcons)
                         }
                         .onDelete { offsets in
                             let groups = visibleGroupSummaries
@@ -43,7 +44,7 @@ struct GroupsListView: View {
                     if !hiddenGroupSummaries.isEmpty {
                         Section("Hidden") {
                             ForEach(hiddenGroupSummaries) { group in
-                                GroupRowView(group: group)
+                                GroupRowView(group: group, showIcon: showGroupIcons)
                             }
                         }
                     }
@@ -110,6 +111,7 @@ struct GroupsListView: View {
 #Preview {
     GroupsListView(
         groupStore: ServerGroupStore(),
-        selectedGroupID: .constant(nil)
+        selectedGroupID: .constant(nil),
+        showGroupIcons: true
     )
 }

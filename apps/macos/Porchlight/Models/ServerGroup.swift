@@ -114,7 +114,16 @@ extension [LocalServer] {
             sections.append(ServerSection(group: nil, servers: ungroupedServers))
         }
 
-        return sections
+        return sections.map { section in
+            var section = section
+            section.servers.sort { a, b in
+                if a.pinned == b.pinned {
+                    return false
+                }
+                return a.pinned
+            }
+            return section
+        }
     }
 }
 

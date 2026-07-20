@@ -2,9 +2,23 @@ import SwiftUI
 
 struct GroupRowView: View {
     let group: GroupSummary
+    let showIcon: Bool
 
     var body: some View {
-        Label {
+        if showIcon {
+            Label {
+                HStack {
+                    Text(group.name)
+                    Spacer()
+                    Text(group.manual ? "Manual" : "Auto")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
+            }
+            .tag(group.id)
+        } else {
             HStack {
                 Text(group.name)
                 Spacer()
@@ -12,10 +26,8 @@ struct GroupRowView: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-        } icon: {
-            GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
+            .tag(group.id)
         }
-        .tag(group.id)
     }
 }
 
@@ -39,6 +51,7 @@ struct GroupRowView: View {
             lastSeenAt: nil,
             ports: [3000, 8000],
             paths: []
-        )
+        ),
+        showIcon: true
     )
 }

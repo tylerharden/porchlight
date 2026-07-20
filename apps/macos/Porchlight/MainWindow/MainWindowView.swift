@@ -23,7 +23,8 @@ struct MainWindowView: View {
             case .groups:
                 GroupsListView(
                     groupStore: groupStore,
-                    selectedGroupID: $selectedGroupID
+                    selectedGroupID: $selectedGroupID,
+                    showGroupIcons: settings.showGroupIcons
                 )
             case .settings:
                 scrollingPane { SettingsTabView(settings: settings) }

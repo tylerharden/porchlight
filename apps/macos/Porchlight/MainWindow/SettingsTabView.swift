@@ -31,7 +31,7 @@ struct SettingsTabView: View {
 
             PreferenceRow(label: "Dock:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide icon when all windows are closed", isOn: $settings.hideDockIcon)
+                    Toggle("Hide app icon when all windows are closed", isOn: $settings.hideDockIcon)
                     Text("Keep Porchlight out of the Dock when you're not using it.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -40,7 +40,7 @@ struct SettingsTabView: View {
 
             PreferenceRow(label: "Menu Bar:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Hide icon when no servers are active", isOn: $settings.hideMenuIconWhenEmpty)
+                    Toggle("Hide app icon when no servers are active", isOn: $settings.hideMenuIconWhenEmpty)
                     Text("Keep Porchlight quiet until there is something useful to show.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -56,6 +56,11 @@ struct SettingsTabView: View {
 
                     Toggle("Show app services", isOn: $settings.showAppServices)
                     Text("When disabled, hides background listeners from apps like Adobe Creative Cloud and Ableton.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    Toggle("Show icons", isOn: $settings.showGroupIcons)
+                    Text("When disabled, group icons won't be shown in the list.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }

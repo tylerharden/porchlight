@@ -46,6 +46,10 @@ final class AppSettings {
         }
     }
 
+    var showGroupIcons: Bool {
+        didSet { persistAndNotify("showGroupIcons", showGroupIcons) }
+    }
+
     var errorMessage: String?
 
     init(defaults: UserDefaults = .standard) {
@@ -56,6 +60,7 @@ final class AppSettings {
         hideMenuIconWhenEmpty = defaults.object(forKey: "hideMenuIconWhenEmpty") as? Bool ?? false
         showAutomaticGroups = defaults.object(forKey: "showAutomaticGroups") as? Bool ?? true
         showAppServices = defaults.object(forKey: "showAppServices") as? Bool ?? true
+        showGroupIcons = defaults.object(forKey: "showGroupIcons") as? Bool ?? true
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
@@ -121,6 +126,7 @@ final class AppSettings {
             hideMenuIconWhenEmpty = false
             showAutomaticGroups = true
             showAppServices = true
+            showGroupIcons = true
             isResetting = false
 
             [
@@ -130,6 +136,7 @@ final class AppSettings {
                 "hideMenuIconWhenEmpty",
                 "showAutomaticGroups",
                 "showAppServices",
+                "showGroupIcons",
             ].forEach { defaults.removeObject(forKey: $0) }
 
             errorMessage = nil
