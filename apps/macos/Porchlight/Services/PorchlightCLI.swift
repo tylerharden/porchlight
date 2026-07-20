@@ -6,13 +6,13 @@ struct PorchlightCLI {
             return override
         }
 
+        if let bundledPath = Bundle.main.path(forResource: "porchlight", ofType: nil) {
+            return bundledPath
+        }
+
         let developmentPath = "/Users/tyler/Developer/porchlight/cli/target/debug/porchlight"
         if FileManager.default.isExecutableFile(atPath: developmentPath) {
             return developmentPath
-        }
-
-        if let bundledPath = Bundle.main.path(forResource: "porchlight", ofType: nil) {
-            return bundledPath
         }
 
         return developmentPath
@@ -73,10 +73,10 @@ struct PorchlightCLI {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executablePath)
             process.arguments = arguments
-            process.environment = [
-                "HOME": FileManager.default.homeDirectoryForCurrentUser.path,
-                "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-            ]
+            var environment = ProcessInfo.processInfo.environment
+            environment["HOME"] = environment["HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.path
+            environment["PATH"] = environment["PATH"] ?? "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            process.environment = environment
 
             let outputPipe = Pipe()
             let errorPipe = Pipe()
