@@ -19,18 +19,7 @@ struct GroupsListView: View {
                 List(selection: $selectedGroupID) {
                     Section {
                         ForEach(visibleGroupSummaries) { group in
-                            Label {
-                                HStack {
-                                    Text(group.name)
-                                    Spacer()
-                                    Text(group.manual ? "Manual" : "Auto")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                            } icon: {
-                                GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
-                            }
-                            .tag(group.id)
+                            GroupRowView(group: group)
                         }
                         .onDelete { offsets in
                             let groups = visibleGroupSummaries
@@ -54,18 +43,7 @@ struct GroupsListView: View {
                     if !hiddenGroupSummaries.isEmpty {
                         Section("Hidden") {
                             ForEach(hiddenGroupSummaries) { group in
-                                Label {
-                                    HStack {
-                                        Text(group.name)
-                                        Spacer()
-                                        Text(group.manual ? "Manual" : "Auto")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } icon: {
-                                    GroupIconView(icon: group.icon, color: group.color ?? "#8E8E93", size: 10)
-                                }
-                                .tag(group.id)
+                                GroupRowView(group: group)
                             }
                         }
                     }
