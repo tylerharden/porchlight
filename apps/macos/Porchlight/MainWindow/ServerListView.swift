@@ -42,6 +42,7 @@ struct ServerListView: View {
                                 ServerGroupHeaderView(group: group, showIcon: showGroupIcons)
                             }
                         }
+                        .listSectionSeparator(.hidden)
                     }
 
                     if !hiddenServers.isEmpty {

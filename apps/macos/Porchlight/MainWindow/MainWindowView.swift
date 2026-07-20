@@ -72,7 +72,6 @@ struct ServerGroupHeaderView: View {
                 .foregroundStyle(Color(hex: group.color ?? "#8E8E93"))
         }
         .textCase(nil)
-        .padding(.top, -12)
     }
 }
 
