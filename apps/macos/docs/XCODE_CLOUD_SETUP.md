@@ -15,11 +15,11 @@ Xcode Cloud automatically builds and tests Porchlight on every git tag matching 
 
 ## Active Configuration
 
-The "Deploy Tag" workflow has been configured with the following settings:
+The "GitHub Deploy" workflow has been configured with the following settings:
 
 ### General
-- **Name:** Deploy Tag
-- **Description:** Deploy based on version tag (e.g. v2.1.1)
+- **Name:** GitHub Deploy
+- **Description:** This workflow needs to exist for our GitHub workflow to be able to trigger a deploy with the API.
 
 ### Environment
 - **Xcode Version:** Latest Release
@@ -27,15 +27,25 @@ The "Deploy Tag" workflow has been configured with the following settings:
 - **Environment Variables:** None
 
 ### Start Conditions
-- **Trigger Type:** Tag changes
-- **Tag Pattern:** Custom tag (tags beginning with "v")
-- **File Changes:** Any file from `apps/macos` has changed
-- **Auto-cancel:** On (cancels previous builds when new tag is pushed)
+- **None.** Apple's native GitHub webhook trigger never reliably fired for this repo (confirmed via the App Store Connect API: Apple's own git reference index never picked up any pushed tags for this repo). Builds are instead started explicitly via `POST /v1/ciBuildRuns` from `.github/workflows/release-macos.yml` — see `.github/scripts/trigger_xcode_cloud_build.py`.
+- Manual builds from the App Store Connect UI can still target any branch (`manualBranchStartCondition` allows all).
 
 ### Build Actions
 - **Platform:** macOS
 - **Scheme:** Porchlight
 - **Build For:** Any Mac
+- **Action Type:** Archive (`buildDistributionAudience: APP_STORE_ELIGIBLE`) — produces a signed, distributable `.xcarchive` using automatic signing (`DEVELOPMENT_TEAM = TLFCRD5283`), not just a compile check
+
+## Backup & Recovery
+
+Xcode Cloud config lives entirely in App Store Connect, not in git, so there's nothing to restore from source control if a workflow or product connection is deleted (this has already happened once — see git log around "ci: trigger CLI/macOS releases..."). A snapshot of the current workflow config is kept at `apps/macos/docs/xcode-cloud-workflow.json` and can be recreated via the API with:
+
+```bash
+ASC_ISSUER_ID=... ASC_KEY_ID=... ASC_PRIVATE_KEY="$(cat AuthKey.p8)" \
+  python3 .github/scripts/recreate_xcode_cloud_workflow.py
+```
+
+Re-run the snapshot (fetch the workflow via `GET /v1/ciWorkflows/{id}` and update the JSON) after any manual change in App Store Connect so it stays accurate. Note the relationship IDs in the snapshot (product, repository, xcodeVersion, macOsVersion) are only valid for the current product/repo connection — if that's also gone, reconnect the repository first and look up fresh IDs.
 
 ## Automatic Version Management
 
