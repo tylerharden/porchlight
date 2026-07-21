@@ -69,7 +69,8 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # Deploy by Tag
+          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # GitHub Deploy
+          ASC_TAG: ${{ github.ref_name }}
         run: |
           pip install --quiet cryptography
           python3 .github/scripts/trigger_xcode_cloud_build.py

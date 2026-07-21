@@ -2,8 +2,15 @@
 """Start an Xcode Cloud build via the App Store Connect API and wait for it.
 
 Xcode Cloud's native GitHub push/tag triggers are unreliable for this repo
-(Apple's own git reference index never picked up any tags), so releases
-trigger the build directly via API instead of waiting on Apple's webhook.
+(Apple's own webhook delivery is badly delayed -- sometimes hours), so
+releases trigger the build directly via API instead of waiting on it.
+
+If ASC_TAG is set, this looks up the matching git reference in Apple's
+index and builds that specific tag (so the build shows up under the tag
+in App Store Connect, not lumped under "main"). Apple's tag indexing also
+lags sometimes, so if the tag isn't indexed yet this falls back to
+building main's current HEAD with a warning, rather than failing the
+release outright.
 
 This also polls the build until it finishes and fails the job (with the
 actual compiler/script error printed) if the Xcode Cloud build itself
@@ -15,6 +22,9 @@ Required environment variables:
   ASC_KEY_ID        App Store Connect API key ID
   ASC_PRIVATE_KEY   App Store Connect API private key (.p8 contents, PEM)
   ASC_WORKFLOW_ID   Xcode Cloud ciWorkflows id to build
+
+Optional:
+  ASC_TAG           git tag name to build (e.g. v0.2.0); omit to build main
 """
 import base64
 import json
@@ -75,16 +85,32 @@ class Client:
             sys.exit(1)
 
 
-def start_build(client: Client, workflow_id: str) -> str:
+def find_tag_reference(client: Client, workflow_id: str, tag: str) -> str | None:
+    repository = client.call(f"/ciWorkflows/{workflow_id}/repository")
+    repo_id = repository["data"]["id"]
+
+    refs = client.call(f"/scmRepositories/{repo_id}/gitReferences?limit=200").get("data", [])
+    for ref in refs:
+        if ref["attributes"].get("kind") == "TAG" and ref["attributes"].get("name") == tag:
+            return ref["id"]
+    return None
+
+
+def start_build(client: Client, workflow_id: str, tag: str | None) -> str:
+    relationships = {"workflow": {"data": {"type": "ciWorkflows", "id": workflow_id}}}
+
+    if tag:
+        ref_id = find_tag_reference(client, workflow_id, tag)
+        if ref_id:
+            relationships["sourceBranchOrTag"] = {"data": {"type": "scmGitReferences", "id": ref_id}}
+            print(f"Building tag {tag!r} (git reference {ref_id})")
+        else:
+            print(f"Tag {tag!r} not yet indexed by Apple, building main's current HEAD instead")
+
     data = client.call(
         "/ciBuildRuns",
         method="POST",
-        body={
-            "data": {
-                "type": "ciBuildRuns",
-                "relationships": {"workflow": {"data": {"type": "ciWorkflows", "id": workflow_id}}},
-            }
-        },
+        body={"data": {"type": "ciBuildRuns", "relationships": relationships}},
     )
     run = data["data"]
     print(f"Started Xcode Cloud build #{run['attributes'].get('number')} (id={run['id']})")
@@ -135,8 +161,9 @@ def main():
         private_key_pem=os.environ["ASC_PRIVATE_KEY"],
     )
     workflow_id = os.environ["ASC_WORKFLOW_ID"]
+    tag = os.environ.get("ASC_TAG") or None
 
-    build_run_id = start_build(client, workflow_id)
+    build_run_id = start_build(client, workflow_id, tag)
     wait_for_build(client, build_run_id)
 
 
