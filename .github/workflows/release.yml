@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: Release Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: |
+          TAG=${{ github.ref_name }}
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Update Cargo.toml version
+        run: |
+          sed -i.bak 's/^version = .*/version = "${{ steps.version.outputs.version }}"/' cli/Cargo.toml
+          cat cli/Cargo.toml | grep "^version"
+          rm -f cli/Cargo.toml.bak
+
+      - name: Update macOS app version in Xcode project
+        run: |
+          # Update both Debug and Release configurations
+          sed -i 's/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${{ steps.version.outputs.version }};/g' apps/macos/Porchlight.xcodeproj/project.pbxproj
+          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
+
+      - name: Verify version updates
+        run: |
+          echo "Cargo.toml version:"
+          grep "^version" cli/Cargo.toml
+          echo ""
+          echo "Xcode project version:"
+          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -1
+
+      - name: Commit version updates
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add cli/Cargo.toml apps/macos/Porchlight.xcodeproj/project.pbxproj
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}" || echo "No version changes to commit"
+
+      - name: Push version updates
+        run: |
+          git push origin HEAD:main || echo "No changes to push"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Trigger Xcode Cloud build
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # Deploy by Tag
+        run: |
+          pip install --quiet cryptography
+          python3 .github/scripts/trigger_xcode_cloud_build.py
