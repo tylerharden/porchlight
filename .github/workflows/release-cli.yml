@@ -17,36 +17,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get version from tag
+      - name: Get version
         id: version
         run: |
-          TAG=${{ github.ref_name }}
-          VERSION=${TAG#v}
+          VERSION=$(grep '^version' cli/Cargo.toml | head -1 | sed -E 's/version = "(.*)"/\1/')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
-
-      - name: Update Cargo.toml version
-        run: |
-          sed -i.bak 's/^version = .*/version = "${{ steps.version.outputs.version }}"/' cli/Cargo.toml
-          rm -f cli/Cargo.toml.bak
-          grep "^version" cli/Cargo.toml
-
-      - name: Commit and push version bump
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add cli/Cargo.toml
-          git commit -m "chore(cli): bump version to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
-
-          for i in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
-              break
-            fi
-            echo "Push rejected (attempt $i), fetching and rebasing..."
-            git fetch origin main
-            git rebase origin/main
-            sleep $((RANDOM % 4 + 1))
-          done
 
       - name: Install Rust targets
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin

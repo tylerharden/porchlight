@@ -17,48 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get version from tag
-        id: version
-        run: |
-          TAG=${{ github.ref_name }}
-          VERSION=${TAG#v}
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
-
-      - name: Update macOS app version in Xcode project
-        run: |
-          # Update both Debug and Release configurations
-          sed -i 's/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${{ steps.version.outputs.version }};/g' apps/macos/Porchlight.xcodeproj/project.pbxproj
-          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
-
-      - name: Update CLI version
-        run: |
-          # Xcode Cloud's "Bundle porchlight CLI" build phase compiles the CLI
-          # from source (cli/Cargo.toml) as part of this same build, so it
-          # needs the version bumped here too -- independently of whether
-          # release-cli.yml has run yet, since these are two separately
-          # triggered workflows with no ordering guarantee between them.
-          sed -i.bak 's/^version = .*/version = "${{ steps.version.outputs.version }}"/' cli/Cargo.toml
-          rm -f cli/Cargo.toml.bak
-          grep "^version" cli/Cargo.toml
-
-      - name: Commit and push version bump
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add apps/macos/Porchlight.xcodeproj/project.pbxproj cli/Cargo.toml
-          git commit -m "chore(macos): bump version to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
-
-          for i in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
-              break
-            fi
-            echo "Push rejected (attempt $i), fetching and rebasing..."
-            git fetch origin main
-            git rebase origin/main
-            sleep $((RANDOM % 4 + 1))
-          done
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -70,13 +28,11 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # GitHub Deploy
-          # Deliberately NOT setting ASC_TAG: the release tag is created before
-          # this job's version-bump commit, so building the tag directly builds
-          # stale, unbumped source -- confirmed live (build #18 built commit
-          # a02134d, the tag's original target, not e1f199a, the actual bump
-          # commit). Building main's current HEAD (the default when ASC_TAG is
-          # unset) is what's actually correct here, since it's always the
-          # post-bump commit by the time this step runs.
+          # Safe to build the tag directly now: prepare-release.yml bumps the
+          # version and commits it to main BEFORE tagging, so the tag and
+          # main's HEAD point at the exact same commit at release time (no
+          # more separate bump-after-checkout step here that could diverge).
+          ASC_TAG: ${{ github.ref_name }}
         run: |
           pip install --quiet cryptography
           python3 .github/scripts/trigger_xcode_cloud_build.py
