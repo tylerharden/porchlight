@@ -7,12 +7,15 @@
   "clean": true,
   "isEnabled": true,
 
-  "_comment_triggers": "No automatic start conditions -- builds are triggered explicitly by .github/workflows/release-macos.yml via POST /v1/ciBuildRuns, not by Apple's native GitHub webhook (which never reliably fired for this repo). manualBranchStartCondition just controls what's selectable when starting a build manually from the App Store Connect UI.",
+  "_comment_triggers": "No automatic start conditions -- builds are triggered explicitly by .github/workflows/release-macos.yml via POST /v1/ciBuildRuns, not by Apple's native GitHub webhook (which never reliably fired for this repo). manualBranchStartCondition/manualTagStartCondition are a SEPARATE scoping mechanism from the automatic ones -- they control what's allowed for manual/API-triggered builds specifically. Both must allow-all, or POST /v1/ciBuildRuns with sourceBranchOrTag set to a tag fails with 409 ENTITY_ERROR.ATTRIBUTE.INVALID ('tag is not associated with the workflow') even though the tag is validly indexed.",
   "tagStartCondition": null,
   "branchStartCondition": null,
   "pullRequestStartCondition": null,
   "scheduledStartCondition": null,
   "manualBranchStartCondition": {
+    "source": { "isAllMatch": true, "patterns": [] }
+  },
+  "manualTagStartCondition": {
     "source": { "isAllMatch": true, "patterns": [] }
   },
 

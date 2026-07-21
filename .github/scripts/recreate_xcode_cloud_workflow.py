@@ -74,6 +74,7 @@ def main():
                 "pullRequestStartCondition": snapshot["pullRequestStartCondition"],
                 "scheduledStartCondition": snapshot["scheduledStartCondition"],
                 "manualBranchStartCondition": snapshot["manualBranchStartCondition"],
+                "manualTagStartCondition": snapshot["manualTagStartCondition"],
             },
             "relationships": {
                 "product": {"data": {"type": "ciProducts", "id": rel["product"]["id"]}},
