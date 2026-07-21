@@ -1,27 +1,63 @@
 name: macOS App Release
 
 on:
-  workflow_call:
-    inputs:
-      ref:
-        required: true
-        type: string
+  release:
+    types: [published]
   workflow_dispatch:
-    inputs:
-      ref:
-        required: true
-        type: string
-        default: main
+
+permissions:
+  contents: write
 
 jobs:
   build:
     name: Trigger & Wait for Xcode Cloud
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
+
+      - name: Get version from tag
+        id: version
+        run: |
+          TAG=${{ github.ref_name }}
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Update macOS app version in Xcode project
+        run: |
+          # Update both Debug and Release configurations
+          sed -i 's/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${{ steps.version.outputs.version }};/g' apps/macos/Porchlight.xcodeproj/project.pbxproj
+          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
+
+      - name: Update CLI version
+        run: |
+          # Xcode Cloud's "Bundle porchlight CLI" build phase compiles the CLI
+          # from source (cli/Cargo.toml) as part of this same build, so it
+          # needs the version bumped here too -- independently of whether
+          # release-cli.yml has run yet, since these are two separately
+          # triggered workflows with no ordering guarantee between them.
+          sed -i.bak 's/^version = .*/version = "${{ steps.version.outputs.version }}"/' cli/Cargo.toml
+          rm -f cli/Cargo.toml.bak
+          grep "^version" cli/Cargo.toml
+
+      - name: Commit and push version bump
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add apps/macos/Porchlight.xcodeproj/project.pbxproj cli/Cargo.toml
+          git commit -m "chore(macos): bump version to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
+
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            echo "Push rejected (attempt $i), fetching and rebasing..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 4 + 1))
+          done
 
       - name: Set up Python
         uses: actions/setup-python@v5
