@@ -176,6 +176,7 @@ struct ServerListView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ServerListView(
         viewModel: ServerListViewModel(),
@@ -183,3 +184,4 @@ struct ServerListView: View {
         showGroupIcons: true
     )
 }
+#endif

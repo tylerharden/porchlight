@@ -56,6 +56,8 @@ struct AboutTabView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     AboutTabView()
 }
+#endif

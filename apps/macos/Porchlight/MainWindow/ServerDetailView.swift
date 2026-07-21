@@ -148,6 +148,7 @@ struct DetailRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Active server") {
     ServerDetailView(
         server: LocalServer(
@@ -185,3 +186,4 @@ struct DetailRow: View {
      )
      .frame(width: 460, height: 380)
  }
+#endif

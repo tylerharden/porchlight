@@ -94,6 +94,7 @@ final class RefreshMenuItemView: NSView {
     }
 }
 
+#if DEBUG
 #Preview("Refresh Menu Item") {
     let target = PreviewActionTarget()
     VStack(spacing: 8) {
@@ -109,3 +110,4 @@ final class RefreshMenuItemView: NSView {
     }
     .padding()
 }
+#endif

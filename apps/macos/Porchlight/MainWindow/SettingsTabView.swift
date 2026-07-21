@@ -119,10 +119,6 @@ struct SettingsTabView: View {
     }
 }
 
-#Preview {
-    SettingsTabView(settings: AppSettings())
-}
-
 struct PreferenceRow<Content: View>: View {
     let label: String
     @ViewBuilder var content: Content
@@ -155,3 +151,9 @@ struct LinkButton: View {
         .foregroundStyle(.blue)
     }
 }
+
+#if DEBUG
+#Preview {
+    SettingsTabView(settings: AppSettings())
+}
+#endif

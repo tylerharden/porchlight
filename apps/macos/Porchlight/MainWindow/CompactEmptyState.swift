@@ -25,6 +25,7 @@ struct CompactEmptyState: View {
     }
 }
 
+#if DEBUG
 #Preview {
     VStack {
         CompactEmptyState(
@@ -40,3 +41,4 @@ struct CompactEmptyState: View {
     }
     .frame(width: 300, height: 300)
 }
+#endif

@@ -31,6 +31,7 @@ struct GroupRowView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     GroupRowView(
         group: GroupSummary(
@@ -55,3 +56,4 @@ struct GroupRowView: View {
         showIcon: true
     )
 }
+#endif

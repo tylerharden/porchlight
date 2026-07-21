@@ -37,6 +37,7 @@ struct GroupIconView: View {
     }
 }
 
+#if DEBUG
 #Preview("Group Icons") {
     HStack(spacing: 16) {
         GroupIconView(icon: nil, color: "#007AFF", size: 18)
@@ -45,3 +46,4 @@ struct GroupIconView: View {
     }
     .padding()
 }
+#endif

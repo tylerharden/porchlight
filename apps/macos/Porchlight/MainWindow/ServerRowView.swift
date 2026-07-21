@@ -69,6 +69,7 @@ struct ServerRowView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     VStack(spacing: 0) {
         ServerRowView(server: PorchlightPreviewData.activeServer)
@@ -87,3 +88,4 @@ struct ServerRowView: View {
     .padding(.vertical, 6)
     .frame(width: 300)
 }
+#endif

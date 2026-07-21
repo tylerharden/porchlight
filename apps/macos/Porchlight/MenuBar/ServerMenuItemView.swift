@@ -45,6 +45,7 @@ final class ServerMenuItemView: NSView {
     }
 }
 
+#if DEBUG
 #Preview("Busy Server Menu Item") {
     NSViewPreview {
         ServerMenuItemView(server: PorchlightPreviewData.activeServer)
@@ -52,3 +53,4 @@ final class ServerMenuItemView: NSView {
     .frame(width: 220, height: 24)
     .padding()
 }
+#endif

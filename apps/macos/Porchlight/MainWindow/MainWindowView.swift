@@ -140,6 +140,7 @@ struct CompactLoadingState: View {
     }
 }
 
+#if DEBUG
 #Preview {
     let vm = ServerListViewModel()
     vm.servers = [
@@ -151,3 +152,4 @@ struct CompactLoadingState: View {
     return MainWindowView(viewModel: vm, settings: AppSettings())
         .frame(width: 680, height: 520)
 }
+#endif

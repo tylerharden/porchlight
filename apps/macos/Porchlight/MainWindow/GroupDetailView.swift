@@ -308,6 +308,7 @@ struct DetailEditorRow<Content: View>: View {
     }
 }
 
+#if DEBUG
 #Preview("Manual Group") {
     let store = ServerGroupStore()
     store.groups = [
@@ -349,3 +350,4 @@ struct DetailEditorRow<Content: View>: View {
     )
     .frame(width: 460, height: 480)
 }
+#endif

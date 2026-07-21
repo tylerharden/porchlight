@@ -80,6 +80,8 @@ struct TabButton: View {
     }
 }
 
+#if DEBUG
 #Preview {
     MainWindowTabHeader(selectedTab: .constant(.servers))
 }
+#endif

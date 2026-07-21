@@ -99,6 +99,7 @@ final class StartMenuItemView: NSView {
     }
 }
 
+#if DEBUG
 #Preview("Start Menu Items") {
     let target = PreviewActionTarget()
     VStack(spacing: 8) {
@@ -139,3 +140,4 @@ final class StartMenuItemView: NSView {
     }
     .padding()
 }
+#endif

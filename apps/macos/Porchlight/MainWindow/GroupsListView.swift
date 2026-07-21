@@ -108,6 +108,7 @@ struct GroupsListView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     GroupsListView(
         groupStore: ServerGroupStore(),
@@ -115,3 +116,4 @@ struct GroupsListView: View {
         showGroupIcons: true
     )
 }
+#endif
