@@ -1,5 +1,8 @@
 # Porchlight
 
+[![CI](https://github.com/tylerharden/porchlight/actions/workflows/ci.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/ci.yml)
+[![Release](https://github.com/tylerharden/porchlight/actions/workflows/release.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/release.yml)
+
 **Find the servers you left on.**
 
 Porchlight is a local developer utility for seeing local servers running on your machine, the ports they use, where they came from, and what actions are available.
