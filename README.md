@@ -1,7 +1,8 @@
 # Porchlight
 
 [![CI](https://github.com/tylerharden/porchlight/actions/workflows/ci.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/ci.yml)
-[![Release](https://github.com/tylerharden/porchlight/actions/workflows/release.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/release.yml)
+[![CLI Release](https://github.com/tylerharden/porchlight/actions/workflows/release-cli.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/release-cli.yml)
+[![macOS App Release](https://github.com/tylerharden/porchlight/actions/workflows/release-macos.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/release-macos.yml)
 
 **Find the servers you left on.**
 

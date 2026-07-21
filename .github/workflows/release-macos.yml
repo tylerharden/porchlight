@@ -1,0 +1,39 @@
+name: macOS App Release
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        required: true
+        type: string
+        default: main
+
+jobs:
+  build:
+    name: Trigger & Wait for Xcode Cloud
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Trigger Xcode Cloud build
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # Deploy by Tag
+        run: |
+          pip install --quiet cryptography
+          python3 .github/scripts/trigger_xcode_cloud_build.py

@@ -4,14 +4,17 @@ on:
   release:
     types: [published]
 
-jobs:
-  release:
-    name: Release Build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    if: startsWith(github.ref, 'refs/tags/v')
+permissions:
+  contents: write
 
+jobs:
+  bump-version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.push.outputs.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +24,7 @@ jobs:
         run: |
           TAG=${{ github.ref_name }}
           VERSION=${TAG#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 
       - name: Update Cargo.toml version
@@ -52,20 +55,26 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }}" || echo "No version changes to commit"
 
       - name: Push version updates
+        id: push
         run: |
           git push origin HEAD:main || echo "No changes to push"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
+  cli-release:
+    name: CLI Release
+    needs: bump-version
+    uses: ./.github/workflows/release-cli.yml
+    with:
+      ref: ${{ needs.bump-version.outputs.sha }}
+      version: ${{ needs.bump-version.outputs.version }}
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: write
 
-      - name: Trigger Xcode Cloud build
-        env:
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # Deploy by Tag
-        run: |
-          pip install --quiet cryptography
-          python3 .github/scripts/trigger_xcode_cloud_build.py
+  macos-release:
+    name: macOS App Release
+    needs: bump-version
+    uses: ./.github/workflows/release-macos.yml
+    with:
+      ref: ${{ needs.bump-version.outputs.sha }}
+    secrets: inherit
