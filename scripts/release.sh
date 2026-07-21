@@ -6,7 +6,7 @@
 # Run locally (not in CI) so the release is created with your own GitHub
 # auth, not the Actions GITHUB_TOKEN -- GitHub suppresses workflow triggers
 # for events caused by GITHUB_TOKEN, so a CI-created release would never
-# actually kick off CLI Release / macOS App Release.
+# actually kick off CLI Release / macOS Release.
 #
 # Usage: scripts/release.sh 0.2.0
 
@@ -45,4 +45,4 @@ git push origin "v$VERSION"
 
 gh release create "v$VERSION" --title "v$VERSION" --generate-notes
 
-echo "Released v$VERSION -- CLI Release and macOS App Release should start shortly."
+echo "Released v$VERSION -- CLI Release and macOS Release should start shortly."

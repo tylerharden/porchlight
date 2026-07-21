@@ -6,10 +6,7 @@ Porchlight uses a single version number across the CLI and macOS app. Releases a
 
 ### Why locally, not via GitHub Actions?
 
-Two hard-learned reasons:
-
-1. **`GITHUB_TOKEN` doesn't cascade.** A release created by a workflow running with the default `GITHUB_TOKEN` does not trigger other workflows' `release: published` listeners — GitHub deliberately suppresses this to prevent infinite recursive workflow chains. A `prepare-release.yml` workflow that bumped, tagged, and created the release itself would silently never kick off the actual build workflows. Running it locally with your own token sidesteps this entirely.
-2. **Tag-then-bump was a real bug, not just cosmetic.** The original design tagged first and bumped the version in a commit pushed *after* the tag existed. Xcode Cloud, pointed at that tag, would build the stale, unbumped source — confirmed live on the real `v0.1.0` release (the build's `sourceCommit` was the tag's original target, not the version-bump commit). Bumping and committing *before* tagging removes that whole class of bug.
+A release created by a workflow running with the default `GITHUB_TOKEN` does not trigger other workflows' `release: published` listeners — GitHub deliberately suppresses this to prevent infinite recursive workflow chains. A workflow that bumped, tagged, and created the release itself would silently never kick off the actual build workflows. Running it locally with your own token sidesteps this entirely.
 
 ## Creating a Release
 
@@ -19,26 +16,16 @@ scripts/release.sh 0.2.0
 
 This bumps `cli/Cargo.toml` and the Xcode project's `MARKETING_VERSION`, commits, tags `v0.2.0`, pushes both, and creates the GitHub Release (`--generate-notes`). Must be run from an up-to-date `main`.
 
-Publishing the release triggers three independent workflows:
+Publishing the release triggers two independent workflows:
 
 1. **`release-cli.yml`** — builds a universal (arm64 + x86_64) CLI binary, uploads it with a sha256 checksum to the release.
-2. **`release-macos.yml`** — starts an Xcode Cloud build via the App Store Connect API (for eventual Mac App Store / TestFlight distribution) and waits for it to finish, failing loudly with the real archive error if it fails.
-3. **`release-macos-direct.yml`** — archives, code-signs with a Developer ID Application certificate, notarizes via `notarytool`, staples, packages as a `.dmg`, and uploads it to the release (for direct/outside-the-App-Store distribution).
+2. **`release-macos.yml`** — archives the macOS app, code-signs it with a Developer ID Application certificate, notarizes via `notarytool`, staples the ticket, packages as a `.dmg`, and uploads it (with a checksum) to the release.
 
-All three run independently — a failure in one doesn't block or affect the others. Each has its own status badge in the README.
+Both run independently — a failure in one doesn't block or affect the other. Each has its own status badge in the README.
 
-## Why the App Store Connect API, not Xcode Cloud's native triggers
+## Distribution
 
-Xcode Cloud's built-in GitHub tag/branch triggers never reliably fired for this repo — confirmed via the App Store Connect API that Apple's own git reference index frequently lags or never catches up. `release-macos.yml` instead calls `POST /v1/ciBuildRuns` directly via `.github/scripts/trigger_xcode_cloud_build.py`, using the App Store Connect API key stored in the `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY` repo secrets. See `apps/macos/docs/XCODE_CLOUD_SETUP.md` for the Xcode Cloud workflow configuration itself (which lives in App Store Connect, not in this repo).
-
-## Two Distribution Paths
-
-| | Mac App Store / TestFlight | Direct download |
-|---|---|---|
-| Workflow | `release-macos.yml` | `release-macos-direct.yml` |
-| Signing | Automatic, App Store Connect-managed | Developer ID Application cert (`DEVELOPER_ID_CERTIFICATE_P12` / `_PASSWORD` secrets) |
-| Build system | Xcode Cloud (triggered via API) | GitHub Actions `macos-latest` runner directly |
-| Output | Submitted to App Store Connect | Notarized, stapled `.dmg` attached to the GitHub Release |
+Porchlight is distributed as a notarized `.dmg` for direct download — not through the Mac App Store. That path was tried (Xcode Cloud, `ENABLE_APP_SANDBOX`, the works) and ruled out: the Mac App Store requires App Sandbox for every submission, and Porchlight's core function — scanning the whole system for listening ports and inspecting other processes to find local dev servers — is exactly the class of behavior App Sandbox exists to prevent. Confirmed empirically: sandboxed, the CLI helper that does all the actual scanning crashes immediately on every launch attempt (`AppSandbox` abort in `libsystem_secinit.dylib`) before it can do anything. There's no entitlement that grants a general sandboxed app that kind of system-wide visibility. Making Porchlight App Store-eligible would mean abandoning system-wide discovery entirely — a different product, not a config change.
 
 ## Version Numbers by Component
 
@@ -47,17 +34,16 @@ Xcode Cloud's built-in GitHub tag/branch triggers never reliably fired for this 
 | Rust CLI | `cli/Cargo.toml` | `version = "0.2.0"` |
 | macOS App | `apps/macos/Porchlight.xcodeproj/project.pbxproj` | `MARKETING_VERSION = 0.2.0;` |
 
-Both are bumped together by `scripts/release.sh`. Note `MARKETING_VERSION` must be clean dotted-numeric (no pre-release suffixes like `-beta`) — Xcode Cloud's Archive action validates this as part of App Store Connect submission prep and will reject anything else.
+Both are bumped together by `scripts/release.sh`.
 
 ## Manual Testing
 
-`release-cli.yml`, `release-macos.yml`, and `release-macos-direct.yml` all support `workflow_dispatch` independently of a real release — useful for retrying just one side (e.g. after an Xcode Cloud failure) without re-bumping versions or re-running the others.
+`release-cli.yml` and `release-macos.yml` both support `workflow_dispatch` independently of a real release — useful for retrying one side without re-bumping versions or re-running the other.
 
 ## Monitoring
 
-- **GitHub Actions**: Actions tab, or the `CI` / `CLI Release` / `macOS App Release` / `macOS Direct Release` badges in the README
-- **Xcode Cloud**: `release-macos.yml`'s job log includes the real build error directly (fetched via the App Store Connect API) if the Xcode Cloud build fails — no need to check App Store Connect separately unless you want more detail
-- **Releases page**: CLI binary, checksum, and the notarized `.dmg` + checksum are attached as release assets once their respective workflows finish
+- **GitHub Actions**: Actions tab, or the `CI` / `CLI Release` / `macOS Release` badges in the README
+- **Releases page**: CLI binary, checksum, notarized `.dmg`, and its checksum are attached as release assets once their respective workflows finish
 
 ## Troubleshooting
 
@@ -67,19 +53,13 @@ The tag already exists — you're likely re-running with a version that was alre
 ### Release didn't trigger anything
 Make sure you ran `scripts/release.sh` (or created the release yourself via `gh release create` / the web UI) rather than having a workflow create it — see "Why locally" above.
 
-### macOS App Store build fails with a real Xcode Cloud error
-`release-macos.yml` prints the actual failure (fetched via `ciBuildActions/{id}/issues`) directly in its job log. Common ones seen so far:
-- Missing Rust toolchain (fixed via `apps/macos/ci_scripts/ci_post_clone.sh`, installs it via Homebrew)
-- Invalid `MARKETING_VERSION` format (must be dotted-numeric only)
-- Missing App Store Connect metadata (e.g. `LSApplicationCategoryType`) once the workflow targets `APP_STORE_ELIGIBLE` distribution
-- Generic `Preparing build for App Store Connect failed` with no further detail via the API — this needs local investigation via Xcode's **Product → Archive → Validate App**, which surfaces a specific, actionable message the API doesn't expose
+### macOS Release fails on notarization
+Check the `notarytool submit --wait` output in the job log — it prints Apple's actual rejection reason (common ones: hardened runtime not enabled, missing entitlements, unsigned nested binaries/frameworks). For a rejection with no detail in the log, fetch it directly:
 
-### macOS Direct Release fails on notarization
-Check the `notarytool submit --wait` output in the job log — it prints Apple's actual rejection reason (common ones: hardened runtime not enabled, missing entitlements, unsigned nested binaries/frameworks).
+```bash
+xcrun notarytool log <submission-id> --key <path-to-AuthKey.p8> --key-id <ASC_KEY_ID> --issuer <ASC_ISSUER_ID>
+```
 
 ## Related Documentation
 
-- [Xcode Cloud Setup](../apps/macos/docs/XCODE_CLOUD_SETUP.md) — Xcode Cloud workflow configuration, backup/recovery
-- [Xcode Cloud Documentation](https://developer.apple.com/xcode-cloud/) — Apple's official docs
-- [App Store Connect](https://appstoreconnect.apple.com) — Web UI for managing builds
 - [Notarizing macOS Software](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) — Apple's official docs

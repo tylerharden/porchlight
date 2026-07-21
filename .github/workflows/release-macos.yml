@@ -1,4 +1,4 @@
-name: macOS App Release
+name: macOS Release
 
 on:
   release:
@@ -10,29 +10,99 @@ permissions:
 
 jobs:
   build:
-    name: Trigger & Wait for Xcode Cloud
-    runs-on: ubuntu-latest
+    name: Archive, Notarize & Upload
+    runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -1 | sed -E 's/.*MARKETING_VERSION = ([0-9.]+);/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
 
-      - name: Trigger Xcode Cloud build
+      - name: Import signing certificate
+        env:
+          DEVELOPER_ID_CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 }}
+          DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          echo -n "$DEVELOPER_ID_CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$DEVELOPER_ID_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # shellcheck disable=SC2046  # intentional word-splitting: each existing keychain needs to be a separate arg
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
+
+          rm -f "$CERT_PATH"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project apps/macos/Porchlight.xcodeproj \
+            -scheme Porchlight \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM=TLFCRD5283
+
+      - name: Export
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist apps/macos/exportOptions-developer-id.plist
+
+      - name: Notarize
         env:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # GitHub Deploy
-          # Safe to build the tag directly now: prepare-release.yml bumps the
-          # version and commits it to main BEFORE tagging, so the tag and
-          # main's HEAD point at the exact same commit at release time (no
-          # more separate bump-after-checkout step here that could diverge).
-          ASC_TAG: ${{ github.ref_name }}
         run: |
-          pip install --quiet cryptography
-          python3 .github/scripts/trigger_xcode_cloud_build.py
+          KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          echo "$ASC_PRIVATE_KEY" > "$KEY_PATH"
+
+          cd "$RUNNER_TEMP/export"
+          ditto -c -k --keepParent Porchlight.app Porchlight.zip
+
+          xcrun notarytool submit Porchlight.zip \
+            --key "$KEY_PATH" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait
+
+          xcrun stapler staple Porchlight.app
+          rm -f "$KEY_PATH" Porchlight.zip
+
+      - name: Package as DMG
+        run: |
+          hdiutil create -volname "Porchlight" \
+            -srcfolder "$RUNNER_TEMP/export/Porchlight.app" \
+            -ov -format UDZO \
+            "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg"
+          cd "$RUNNER_TEMP"
+          shasum -a 256 "Porchlight-${{ steps.version.outputs.version }}.dmg" > "Porchlight-${{ steps.version.outputs.version }}.dmg.sha256"
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg" \
+            "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg.sha256" \
+            --clobber --repo "${{ github.repository }}"
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH" || true
