@@ -91,7 +91,8 @@ jobs:
             -srcfolder "$RUNNER_TEMP/export/Porchlight.app" \
             -ov -format UDZO \
             "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg"
-          shasum -a 256 "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg" > "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg.sha256"
+          cd "$RUNNER_TEMP"
+          shasum -a 256 "Porchlight-${{ steps.version.outputs.version }}.dmg" > "Porchlight-${{ steps.version.outputs.version }}.dmg.sha256"
 
       - name: Upload to release
         env:
