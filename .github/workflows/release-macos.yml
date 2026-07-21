@@ -70,7 +70,13 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # GitHub Deploy
-          ASC_TAG: ${{ github.ref_name }}
+          # Deliberately NOT setting ASC_TAG: the release tag is created before
+          # this job's version-bump commit, so building the tag directly builds
+          # stale, unbumped source -- confirmed live (build #18 built commit
+          # a02134d, the tag's original target, not e1f199a, the actual bump
+          # commit). Building main's current HEAD (the default when ASC_TAG is
+          # unset) is what's actually correct here, since it's always the
+          # post-bump commit by the time this step runs.
         run: |
           pip install --quiet cryptography
           python3 .github/scripts/trigger_xcode_cloud_build.py
