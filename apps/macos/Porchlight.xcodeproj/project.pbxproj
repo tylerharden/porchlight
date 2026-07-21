@@ -181,9 +181,18 @@
 				"set -eu",
 				"CLI_DIR=\"${SRCROOT}/../../cli\"",
 				"export PATH=\"${HOME}/.cargo/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin\"",
-				"cargo build --manifest-path \"${CLI_DIR}/Cargo.toml\"",
+				"if [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"  cargo build --release --manifest-path \"${CLI_DIR}/Cargo.toml\"",
+				"  CLI_BIN=\"${CLI_DIR}/target/release/porchlight\"",
+				"else",
+				"  cargo build --manifest-path \"${CLI_DIR}/Cargo.toml\"",
+				"  CLI_BIN=\"${CLI_DIR}/target/debug/porchlight\"",
+				"fi",
 				"mkdir -p \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"",
-				"cp \"${CLI_DIR}/target/debug/porchlight\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/porchlight\"",
+				"cp \"${CLI_BIN}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/porchlight\"",
+				"if [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then",
+				"  codesign --force --options runtime --timestamp --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/porchlight\"",
+				"fi",
 				"",
 			);
 		};
@@ -353,6 +362,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = TLFCRD5283;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -398,6 +408,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = TLFCRD5283;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
