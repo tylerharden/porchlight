@@ -32,12 +32,16 @@ rm -f cli/Cargo.toml.bak
 sed -i.bak "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = $VERSION;/g" apps/macos/Porchlight.xcodeproj/project.pbxproj
 rm -f apps/macos/Porchlight.xcodeproj/project.pbxproj.bak
 
+# Keep Cargo.lock's self-referential package version in sync so it doesn't
+# drift out of date until someone happens to build locally.
+cargo check --manifest-path cli/Cargo.toml --quiet
+
 echo "cli/Cargo.toml:"
 grep "^version" cli/Cargo.toml
 echo "project.pbxproj:"
 grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
 
-git add cli/Cargo.toml apps/macos/Porchlight.xcodeproj/project.pbxproj
+git add cli/Cargo.toml cli/Cargo.lock apps/macos/Porchlight.xcodeproj/project.pbxproj
 git commit -m "chore: bump version to $VERSION"
 git tag "v$VERSION"
 git push origin main
