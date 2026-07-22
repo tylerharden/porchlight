@@ -1,6 +1,7 @@
 # Porchlight
 
-[![CI](https://github.com/tylerharden/porchlight/actions/workflows/ci.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/ci.yml)
+[![CLI CI](https://github.com/tylerharden/porchlight/actions/workflows/ci-cli.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/ci-cli.yml)
+[![macOS CI](https://github.com/tylerharden/porchlight/actions/workflows/ci-macos.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/ci-macos.yml)
 [![CLI Release](https://github.com/tylerharden/porchlight/actions/workflows/release-cli.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/release-cli.yml)
 [![macOS Release](https://github.com/tylerharden/porchlight/actions/workflows/release-macos.yml/badge.svg)](https://github.com/tylerharden/porchlight/actions/workflows/release-macos.yml)
 
@@ -9,6 +10,11 @@
 Porchlight is a local developer utility for seeing local servers running on your machine, the ports they use, where they came from, and what actions are available.
 
 The Rust CLI is the source of truth. The macOS app shells out to the CLI and reads stable JSON output.
+
+## Download
+
+[![Latest macOS Release](https://img.shields.io/github/v/release/tylerharden/porchlight?filter=macos-v*&label=macOS&color=blue)](https://github.com/tylerharden/porchlight/releases?q=macos-v&expanded=true)
+[![Latest CLI Release](https://img.shields.io/github/v/release/tylerharden/porchlight?filter=cli-v*&label=CLI&color=orange)](https://github.com/tylerharden/porchlight/releases?q=cli-v&expanded=true)
 
 ## Current Status
 
