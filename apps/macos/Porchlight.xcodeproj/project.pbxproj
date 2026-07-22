@@ -425,7 +425,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 0.1.5;
 				PORCHLIGHT_CLI_SOURCE = local;
-				PORCHLIGHT_CLI_VERSION = 0.1.5;
+				PORCHLIGHT_CLI_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
 				REGISTER_APP_GROUPS = YES;
@@ -473,7 +473,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 0.1.5;
 				PORCHLIGHT_CLI_SOURCE = local;
-				PORCHLIGHT_CLI_VERSION = 0.1.5;
+				PORCHLIGHT_CLI_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
 				REGISTER_APP_GROUPS = YES;
