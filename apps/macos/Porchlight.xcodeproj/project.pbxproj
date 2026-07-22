@@ -180,13 +180,15 @@
 			shellPath = /bin/sh;
 			shellScript = (
 				"set -eu",
-				"CLI_DIR=\"${SRCROOT}/../../cli\"",
-				"CLI_ACTUAL_VERSION=$(grep \"^version\" \"${CLI_DIR}/Cargo.toml\" | head -1 | sed -E \"s/version = .(.*)./\\1/\")",
-				"if [ \"${CONFIGURATION}\" = \"Release\" ] && [ \"${CLI_ACTUAL_VERSION}\" != \"${PORCHLIGHT_CLI_VERSION}\" ]; then",
-				"  echo \"error: CLI version mismatch. Xcode project pins PORCHLIGHT_CLI_VERSION=${PORCHLIGHT_CLI_VERSION} but cli/Cargo.toml is at ${CLI_ACTUAL_VERSION}. Update PORCHLIGHT_CLI_VERSION in project.pbxproj if this CLI change is intentional.\" >&2",
-				"  exit 1",
-				"fi",
 				"OUTPUT=\"${SRCROOT}/Porchlight/Generated/BuildInfo.swift\"",
+				"if [ \"${PORCHLIGHT_CLI_SOURCE:-local}\" != \"registry\" ] && [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
+				"  CLI_ACTUAL_VERSION=$(grep \"^version\" \"${CLI_DIR}/Cargo.toml\" | head -1 | sed -E \"s/version = .(.*)./\\1/\")",
+				"  if [ \"${CLI_ACTUAL_VERSION}\" != \"${PORCHLIGHT_CLI_VERSION}\" ]; then",
+				"    echo \"error: CLI version mismatch. Xcode project pins PORCHLIGHT_CLI_VERSION=${PORCHLIGHT_CLI_VERSION} but cli/Cargo.toml is at ${CLI_ACTUAL_VERSION}. Update PORCHLIGHT_CLI_VERSION in project.pbxproj if this CLI change is intentional.\" >&2",
+				"    exit 1",
+				"  fi",
+				"fi",
 				"echo \"// Generated at build time by the Validate and Generate Build Info script\" > \"${OUTPUT}\"",
 				"echo \"// phase from the PORCHLIGHT_CLI_VERSION build setting. Committed with the\" >> \"${OUTPUT}\"",
 				"echo \"// current correct value so local/CI builds produce no diff when the CLI\" >> \"${OUTPUT}\"",
@@ -207,19 +209,30 @@
 			shellPath = /bin/sh;
 			shellScript = (
 				"set -eu",
-				"CLI_DIR=\"${SRCROOT}/../../cli\"",
 				"export PATH=\"${HOME}/.cargo/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin\"",
-				"if [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"DEST_DIR=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"",
+				"mkdir -p \"${DEST_DIR}\"",
+				"DEST=\"${DEST_DIR}/porchlight\"",
+				"if [ \"${PORCHLIGHT_CLI_SOURCE:-local}\" = \"registry\" ]; then",
+				"  INSTALL_ROOT=\"${TARGET_TEMP_DIR}/porchlight-cli-install\"",
+				"  for RUST_TARGET in aarch64-apple-darwin x86_64-apple-darwin; do",
+				"    rustup target add \"$RUST_TARGET\" >/dev/null 2>&1 || true",
+				"    cargo install porchlight --version \"${PORCHLIGHT_CLI_VERSION}\" --target \"$RUST_TARGET\" --root \"${INSTALL_ROOT}/${RUST_TARGET}\" --locked --force",
+				"  done",
+				"  lipo -create -output \"${DEST}\" \\",
+				"    \"${INSTALL_ROOT}/aarch64-apple-darwin/bin/porchlight\" \\",
+				"    \"${INSTALL_ROOT}/x86_64-apple-darwin/bin/porchlight\"",
+				"elif [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
 				"  cargo build --release --manifest-path \"${CLI_DIR}/Cargo.toml\"",
-				"  CLI_BIN=\"${CLI_DIR}/target/release/porchlight\"",
+				"  cp \"${CLI_DIR}/target/release/porchlight\" \"${DEST}\"",
 				"else",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
 				"  cargo build --manifest-path \"${CLI_DIR}/Cargo.toml\"",
-				"  CLI_BIN=\"${CLI_DIR}/target/debug/porchlight\"",
+				"  cp \"${CLI_DIR}/target/debug/porchlight\" \"${DEST}\"",
 				"fi",
-				"mkdir -p \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"",
-				"cp \"${CLI_BIN}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/porchlight\"",
 				"if [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then",
-				"  codesign --force --options runtime --timestamp --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/porchlight\"",
+				"  codesign --force --options runtime --timestamp --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" \"${DEST}\"",
 				"fi",
 				"",
 			);
@@ -411,6 +424,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 0.1.5;
+				PORCHLIGHT_CLI_SOURCE = local;
 				PORCHLIGHT_CLI_VERSION = 0.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
@@ -458,6 +472,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 0.1.5;
+				PORCHLIGHT_CLI_SOURCE = local;
 				PORCHLIGHT_CLI_VERSION = 0.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;

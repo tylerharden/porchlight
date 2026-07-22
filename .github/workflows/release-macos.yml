@@ -67,6 +67,9 @@ jobs:
           rm -f "$CERT_PATH"
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
+      - name: Install Rust targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
       - name: Archive
         run: |
           xcodebuild archive \
@@ -76,7 +79,8 @@ jobs:
             -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
-            DEVELOPMENT_TEAM=TLFCRD5283
+            DEVELOPMENT_TEAM=TLFCRD5283 \
+            PORCHLIGHT_CLI_SOURCE=registry
 
       - name: Export
         run: |
