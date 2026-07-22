@@ -23,6 +23,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine previous CLI release tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git tag -l "cli-v*" | sort -V | tail -n1)
+          echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Bump version
         run: |
@@ -84,9 +92,15 @@ jobs:
       - name: Create release and upload
         env:
           GH_TOKEN: ${{ github.token }}
+          PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
         run: |
+          NOTES_ARGS=()
+          if [ -n "$PREV_TAG" ]; then
+            NOTES_ARGS+=(--notes-start-tag "$PREV_TAG")
+          fi
           gh release create "cli-v${{ inputs.version }}" \
             "$ARCHIVE" "$ARCHIVE.sha256" \
             --title "CLI v${{ inputs.version }}" \
             --generate-notes \
+            "${NOTES_ARGS[@]}" \
             --repo "${{ github.repository }}"
