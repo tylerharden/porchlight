@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2F6E91943008EA8A005D5BB0 /* Porchlight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2F6E91803008EA8A005D5BB0 /* Porchlight.icon */; };
 		000000000000000172000000 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000171000000 /* Sparkle */; };
+		2F6E91943008EA8A005D5BB0 /* Porchlight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2F6E91803008EA8A005D5BB0 /* Porchlight.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -178,35 +178,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		000000000000000160000000 /* Validate & Generate Build Info */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			name = "Validate & Generate Build Info";
-			outputPaths = (
-				"$(SRCROOT)/Porchlight/Generated/BuildInfo.swift",
-			);
-			shellPath = /bin/sh;
-			shellScript = (
-				"set -eu",
-				"OUTPUT=\"${SRCROOT}/Porchlight/Generated/BuildInfo.swift\"",
-				"if [ \"${PORCHLIGHT_CLI_SOURCE:-local}\" != \"registry\" ] && [ \"${CONFIGURATION}\" = \"Release\" ]; then",
-				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
-				"  CLI_ACTUAL_VERSION=$(grep \"^version\" \"${CLI_DIR}/Cargo.toml\" | head -1 | sed -E \"s/version = .(.*)./\\1/\")",
-				"  if [ \"${CLI_ACTUAL_VERSION}\" != \"${PORCHLIGHT_CLI_VERSION}\" ]; then",
-				"    echo \"error: CLI version mismatch. Xcode project pins PORCHLIGHT_CLI_VERSION=${PORCHLIGHT_CLI_VERSION} but cli/Cargo.toml is at ${CLI_ACTUAL_VERSION}. Update PORCHLIGHT_CLI_VERSION in project.pbxproj if this CLI change is intentional.\" >&2",
-				"    exit 1",
-				"  fi",
-				"fi",
-				"echo \"// Generated at build time by the Validate and Generate Build Info script\" > \"${OUTPUT}\"",
-				"echo \"// phase from the PORCHLIGHT_CLI_VERSION build setting. Committed with the\" >> \"${OUTPUT}\"",
-				"echo \"// current correct value so local/CI builds produce no diff when the CLI\" >> \"${OUTPUT}\"",
-				"echo \"// version has not changed -- do not edit by hand.\" >> \"${OUTPUT}\"",
-				"echo \"enum BuildInfo {\" >> \"${OUTPUT}\"",
-				"echo \"    static let porchlightCLIVersion = \\\"${PORCHLIGHT_CLI_VERSION}\\\"\" >> \"${OUTPUT}\"",
-				"echo \"}\" >> \"${OUTPUT}\"",
-				"",
-			);
-		};
 		000000000000000150000000 /* Bundle porchlight CLI */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -242,6 +213,35 @@
 				"if [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then",
 				"  codesign --force --options runtime --timestamp --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" \"${DEST}\"",
 				"fi",
+				"",
+			);
+		};
+		000000000000000160000000 /* Validate & Generate Build Info */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			name = "Validate & Generate Build Info";
+			outputPaths = (
+				"$(SRCROOT)/Porchlight/Generated/BuildInfo.swift",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"set -eu",
+				"OUTPUT=\"${SRCROOT}/Porchlight/Generated/BuildInfo.swift\"",
+				"if [ \"${PORCHLIGHT_CLI_SOURCE:-local}\" != \"registry\" ] && [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
+				"  CLI_ACTUAL_VERSION=$(grep \"^version\" \"${CLI_DIR}/Cargo.toml\" | head -1 | sed -E \"s/version = .(.*)./\\1/\")",
+				"  if [ \"${CLI_ACTUAL_VERSION}\" != \"${PORCHLIGHT_CLI_VERSION}\" ]; then",
+				"    echo \"error: CLI version mismatch. Xcode project pins PORCHLIGHT_CLI_VERSION=${PORCHLIGHT_CLI_VERSION} but cli/Cargo.toml is at ${CLI_ACTUAL_VERSION}. Update PORCHLIGHT_CLI_VERSION in project.pbxproj if this CLI change is intentional.\" >&2",
+				"    exit 1",
+				"  fi",
+				"fi",
+				"echo \"// Generated at build time by the Validate and Generate Build Info script\" > \"${OUTPUT}\"",
+				"echo \"// phase from the PORCHLIGHT_CLI_VERSION build setting. Committed with the\" >> \"${OUTPUT}\"",
+				"echo \"// current correct value so local/CI builds produce no diff when the CLI\" >> \"${OUTPUT}\"",
+				"echo \"// version has not changed -- do not edit by hand.\" >> \"${OUTPUT}\"",
+				"echo \"enum BuildInfo {\" >> \"${OUTPUT}\"",
+				"echo \"    static let porchlightCLIVersion = \\\"${PORCHLIGHT_CLI_VERSION}\\\"\" >> \"${OUTPUT}\"",
+				"echo \"}\" >> \"${OUTPUT}\"",
 				"",
 			);
 		};
@@ -415,14 +415,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Porchlight/Info-Sparkle.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Porchlight;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
-				INFOPLIST_KEY_NSHighResolutionCapable = YES;
-				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
-				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tylerharden/porchlight/main/apps/macos/appcast.xml";
-				INFOPLIST_KEY_SUPublicEDKey = "OHSRyLGqkXxkzdatO3/tK0iIb+18lJnNtbLQXEzl3Xg=";
-				INFOPLIST_KEY_SUScheduledCheckInterval = 86400;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -467,14 +463,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Porchlight/Info-Sparkle.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Porchlight;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
-				INFOPLIST_KEY_NSHighResolutionCapable = YES;
-				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
-				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tylerharden/porchlight/main/apps/macos/appcast.xml";
-				INFOPLIST_KEY_SUPublicEDKey = "OHSRyLGqkXxkzdatO3/tK0iIb+18lJnNtbLQXEzl3Xg=";
-				INFOPLIST_KEY_SUScheduledCheckInterval = 86400;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
