@@ -13,8 +13,8 @@ The Rust CLI is the source of truth. The macOS app shells out to the CLI and rea
 
 ## Download
 
-[![Latest macOS Release](https://img.shields.io/github/v/release/tylerharden/porchlight?filter=macos-v*&label=macOS&color=blue)](https://github.com/tylerharden/porchlight/releases?q=macos-v&expanded=true)
-[![Latest CLI Release](https://img.shields.io/github/v/release/tylerharden/porchlight?filter=cli-v*&label=CLI&color=orange)](https://github.com/tylerharden/porchlight/releases?q=cli-v&expanded=true)
+[![Latest macOS Release](https://img.shields.io/github/v/release/tylerharden/porchlight?filter=macos-v*&label=macOS&color=blue)](https://github.com/tylerharden/porchlight/releases)
+[![Latest CLI Release](https://img.shields.io/github/v/release/tylerharden/porchlight?filter=cli-v*&label=CLI&color=orange)](https://github.com/tylerharden/porchlight/releases)
 
 ## Current Status
 
