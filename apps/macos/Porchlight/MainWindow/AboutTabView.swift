@@ -7,6 +7,10 @@ struct AboutTabView: View {
     private let termsURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/TERMS_OF_USE.md")!
     private let privacyURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/PRIVACY_POLICY.md")!
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
     var body: some View {
         VStack(spacing: 34) {
             HStack(alignment: .top, spacing: 34) {
@@ -18,7 +22,7 @@ struct AboutTabView: View {
                     Text(Strings.About.appName)
                         .font(.title3.weight(.semibold))
 
-                    Text("Version 0.1.0")
+                    Text("Version \(appVersion) (CLI \(BuildInfo.porchlightCLIVersion))")
                         .foregroundStyle(.secondary)
 
                     Text(Strings.About.tagline)

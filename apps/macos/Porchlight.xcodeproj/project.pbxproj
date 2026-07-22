@@ -79,6 +79,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "Porchlight" */;
 			buildPhases = (
+				000000000000000160000000 /* Validate & Generate Build Info */,
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000150000000 /* Bundle porchlight CLI */,
@@ -169,6 +170,33 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		000000000000000160000000 /* Validate & Generate Build Info */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			name = "Validate & Generate Build Info";
+			outputPaths = (
+				"$(SRCROOT)/Porchlight/Generated/BuildInfo.swift",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"set -eu",
+				"CLI_DIR=\"${SRCROOT}/../../cli\"",
+				"CLI_ACTUAL_VERSION=$(grep \"^version\" \"${CLI_DIR}/Cargo.toml\" | head -1 | sed -E \"s/version = .(.*)./\\1/\")",
+				"if [ \"${CONFIGURATION}\" = \"Release\" ] && [ \"${CLI_ACTUAL_VERSION}\" != \"${PORCHLIGHT_CLI_VERSION}\" ]; then",
+				"  echo \"error: CLI version mismatch. Xcode project pins PORCHLIGHT_CLI_VERSION=${PORCHLIGHT_CLI_VERSION} but cli/Cargo.toml is at ${CLI_ACTUAL_VERSION}. Update PORCHLIGHT_CLI_VERSION in project.pbxproj if this CLI change is intentional.\" >&2",
+				"  exit 1",
+				"fi",
+				"OUTPUT=\"${SRCROOT}/Porchlight/Generated/BuildInfo.swift\"",
+				"echo \"// Generated at build time by the Validate and Generate Build Info script\" > \"${OUTPUT}\"",
+				"echo \"// phase from the PORCHLIGHT_CLI_VERSION build setting. Committed with the\" >> \"${OUTPUT}\"",
+				"echo \"// current correct value so local/CI builds produce no diff when the CLI\" >> \"${OUTPUT}\"",
+				"echo \"// version has not changed -- do not edit by hand.\" >> \"${OUTPUT}\"",
+				"echo \"enum BuildInfo {\" >> \"${OUTPUT}\"",
+				"echo \"    static let porchlightCLIVersion = \\\"${PORCHLIGHT_CLI_VERSION}\\\"\" >> \"${OUTPUT}\"",
+				"echo \"}\" >> \"${OUTPUT}\"",
+				"",
+			);
+		};
 		000000000000000150000000 /* Bundle porchlight CLI */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -383,6 +411,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 0.1.5;
+				PORCHLIGHT_CLI_VERSION = 0.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
 				REGISTER_APP_GROUPS = YES;
@@ -429,6 +458,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 0.1.5;
+				PORCHLIGHT_CLI_VERSION = 0.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
 				REGISTER_APP_GROUPS = YES;
