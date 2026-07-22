@@ -1,28 +1,49 @@
 name: macOS Release
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.0 (no 'macos-v' prefix)"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Archive, Notarize & Upload
+    name: Bump, Archive, Notarize & Release
     runs-on: macos-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get version
-        id: version
+      - name: Bump version
         run: |
-          VERSION=$(grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -1 | sed -E 's/.*MARKETING_VERSION = ([0-9.]+);/\1/')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
+          sed -i.bak "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${{ inputs.version }};/g" apps/macos/Porchlight.xcodeproj/project.pbxproj
+          rm -f apps/macos/Porchlight.xcodeproj/project.pbxproj.bak
+          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
+
+      - name: Commit, tag, and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add apps/macos/Porchlight.xcodeproj/project.pbxproj
+          git commit -m "chore(macos): bump version to ${{ inputs.version }}"
+
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            echo "Push rejected (attempt $i), fetching and rebasing..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 4 + 1))
+          done
+
+          git tag "macos-v${{ inputs.version }}"
+          git push origin "macos-v${{ inputs.version }}"
 
       - name: Import signing certificate
         env:
@@ -90,18 +111,20 @@ jobs:
           hdiutil create -volname "Porchlight" \
             -srcfolder "$RUNNER_TEMP/export/Porchlight.app" \
             -ov -format UDZO \
-            "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg"
+            "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg"
           cd "$RUNNER_TEMP"
-          shasum -a 256 "Porchlight-${{ steps.version.outputs.version }}.dmg" > "Porchlight-${{ steps.version.outputs.version }}.dmg.sha256"
+          shasum -a 256 "Porchlight-${{ inputs.version }}.dmg" > "Porchlight-${{ inputs.version }}.dmg.sha256"
 
-      - name: Upload to release
+      - name: Create release and upload
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.ref_name }}" \
-            "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg" \
-            "$RUNNER_TEMP/Porchlight-${{ steps.version.outputs.version }}.dmg.sha256" \
-            --clobber --repo "${{ github.repository }}"
+          gh release create "macos-v${{ inputs.version }}" \
+            "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg" \
+            "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg.sha256" \
+            --title "macOS v${{ inputs.version }}" \
+            --generate-notes \
+            --repo "${{ github.repository }}"
 
       - name: Clean up keychain
         if: always()

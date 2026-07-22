@@ -1,28 +1,50 @@
 name: CLI Release
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.3.1 (no 'cli-v' prefix)"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Build & Upload (macOS universal)
+    name: Bump, Build & Release (macOS universal)
     runs-on: macos-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get version
-        id: version
+      - name: Bump version
         run: |
-          VERSION=$(grep '^version' cli/Cargo.toml | head -1 | sed -E 's/version = "(.*)"/\1/')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
+          sed -i.bak "s/^version = .*/version = \"${{ inputs.version }}\"/" cli/Cargo.toml
+          rm -f cli/Cargo.toml.bak
+          cargo check --manifest-path cli/Cargo.toml --quiet
+          grep "^version" cli/Cargo.toml
+
+      - name: Commit, tag, and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add cli/Cargo.toml cli/Cargo.lock
+          git commit -m "chore(cli): bump version to ${{ inputs.version }}"
+
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            echo "Push rejected (attempt $i), fetching and rebasing..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 4 + 1))
+          done
+
+          git tag "cli-v${{ inputs.version }}"
+          git push origin "cli-v${{ inputs.version }}"
 
       - name: Install Rust targets
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -44,13 +66,17 @@ jobs:
 
       - name: Package
         run: |
-          ARCHIVE="porchlight-macos-universal-${{ steps.version.outputs.version }}.tar.gz"
+          ARCHIVE="porchlight-macos-universal-${{ inputs.version }}.tar.gz"
           tar -czf "$ARCHIVE" porchlight
           shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
           echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
 
-      - name: Upload to release
+      - name: Create release and upload
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.ref_name }}" "$ARCHIVE" "$ARCHIVE.sha256" --clobber --repo "${{ github.repository }}"
+          gh release create "cli-v${{ inputs.version }}" \
+            "$ARCHIVE" "$ARCHIVE.sha256" \
+            --title "CLI v${{ inputs.version }}" \
+            --generate-notes \
+            --repo "${{ github.repository }}"
