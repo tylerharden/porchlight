@@ -1,26 +1,33 @@
 {
   "fill" : {
-    "solid" : "display-p3:0.52432,0.58518,0.74177,1.00000"
+    "linear-gradient" : [
+      "display-p3:0.40960,0.45277,0.53977,1.00000",
+      "display-p3:0.49924,0.56650,0.72999,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
     {
-      "blur-material" : 0.5,
-      "hidden" : false,
+      "blur-material" : null,
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "fill" : "system-dark",
           "image-name" : "3.frame.svg",
-          "name" : "3.frame",
-          "opacity" : 1
+          "name" : "3.frame"
         },
         {
-          "glass" : true,
           "image-name" : "2.light.svg",
           "name" : "2.light"
         }
       ],
-      "lighting" : "individual",
       "position" : {
         "scale" : 2.2,
         "translation-in-points" : [
@@ -28,19 +35,27 @@
           0
         ]
       },
-      "refractivity" : {
-        "depth" : 0,
-        "enabled" : false,
-        "strength" : 0.5
-      },
       "shadow" : {
         "kind" : "neutral",
-        "opacity" : 0.6
+        "opacity" : 0.5
       },
-      "specular" : true,
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
       "translucency" : {
         "enabled" : true,
-        "value" : 0.2
+        "value" : 0.5
       }
     }
   ],
