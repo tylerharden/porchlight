@@ -1,36 +1,26 @@
-name: CI
+name: macOS CI
 
 on:
   pull_request:
+    paths:
+      - "apps/macos/**"
+      - "cli/Cargo.toml"
+      - ".github/workflows/ci-macos.yml"
   push:
     branches:
       - main
+    paths:
+      - "apps/macos/**"
+      - "cli/Cargo.toml"
+      - ".github/workflows/ci-macos.yml"
+  workflow_call:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-macos-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  cli:
-    name: Rust CLI
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Check formatting
-        working-directory: cli
-        run: cargo fmt --check
-
-      - name: Run tests
-        working-directory: cli
-        run: cargo test -j 1
-
-  macos:
+  test:
     name: macOS App
     runs-on: macos-latest
 

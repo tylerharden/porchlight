@@ -12,8 +12,13 @@ permissions:
   contents: write
 
 jobs:
+  ci:
+    name: Run CLI CI
+    uses: ./.github/workflows/ci-cli.yml
+
   build:
     name: Bump, Build & Release (macOS universal)
+    needs: ci
     runs-on: macos-latest
     steps:
       - name: Checkout

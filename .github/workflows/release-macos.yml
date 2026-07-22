@@ -12,8 +12,13 @@ permissions:
   contents: write
 
 jobs:
+  ci:
+    name: Run macOS CI
+    uses: ./.github/workflows/ci-macos.yml
+
   build:
     name: Bump, Archive, Notarize & Release
+    needs: ci
     runs-on: macos-latest
     steps:
       - name: Checkout
