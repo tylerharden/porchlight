@@ -1,9 +1,11 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let settings: AppSettings
+    private let updaterController: SPUStandardUpdaterController
     private lazy var viewModel = ServerListViewModel(settings: settings)
     private var window: NSWindow?
 
@@ -11,8 +13,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window?.isVisible == true
     }
 
-    init(settings: AppSettings) {
+    init(settings: AppSettings, updaterController: SPUStandardUpdaterController) {
         self.settings = settings
+        self.updaterController = updaterController
         super.init()
     }
 
@@ -41,7 +44,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.toolbarStyle = .unifiedCompact
         window.center()
         window.delegate = self
-        window.contentView = NSHostingView(rootView: MainWindowView(viewModel: viewModel, settings: settings))
+        window.contentView = NSHostingView(rootView: MainWindowView(viewModel: viewModel, settings: settings, updaterController: updaterController))
         window.isReleasedWhenClosed = false
         return window
     }

@@ -1,7 +1,9 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 struct AboutTabView: View {
+    let updaterController: SPUStandardUpdaterController
     private let repositoryURL = URL(string: "https://github.com/tylerharden/porchlight")!
     private let issuesURL = URL(string: "https://github.com/tylerharden/porchlight/issues/new")!
     private let termsURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/TERMS_OF_USE.md")!
@@ -37,6 +39,8 @@ struct AboutTabView: View {
 
                     Button(Strings.About.reportIssue) { open(issuesURL) }
                         .padding(.top, 10)
+
+                    Button(Strings.About.checkForUpdates) { updaterController.checkForUpdates(nil) }
                 }
                 .frame(width: 210, alignment: .leading)
             }
@@ -62,6 +66,6 @@ struct AboutTabView: View {
 
 #if DEBUG
 #Preview {
-    AboutTabView()
+    AboutTabView(updaterController: SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil))
 }
 #endif

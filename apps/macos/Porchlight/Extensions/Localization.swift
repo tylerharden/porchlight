@@ -158,6 +158,7 @@ struct Strings {
         static let privacyPolicyLink: String = "Privacy Policy"
         static let termsOfUseLink: String = "Terms of Use"
         static let reportIssue: String = "Report an Issue..."
+        static let checkForUpdates: String = "Check for Updates..."
         static let copyright: String = "© 2026 Porchlight. All rights reserved."
     }
 }

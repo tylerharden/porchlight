@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2F6E91943008EA8A005D5BB0 /* Porchlight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2F6E91803008EA8A005D5BB0 /* Porchlight.icon */; };
+		000000000000000172000000 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000171000000 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,6 +44,7 @@
 		000000000000000130000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				000000000000000172000000 /* Sparkle in Frameworks */,
 			);
 		};
 		000000000000000230000000 /* Frameworks */ = {
@@ -91,6 +93,9 @@
 				2F6E913C3008E96F005D5BB0 /* Porchlight */,
 			);
 			name = Porchlight;
+			packageProductDependencies = (
+				000000000000000171000000 /* Sparkle */,
+			);
 			productName = Porchlight;
 			productReference = 000000000000000000000120 /* Porchlight.app */;
 			productType = "com.apple.product-type.application";
@@ -144,6 +149,9 @@
 			);
 			mainGroup = 000000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				000000000000000170000000 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
 			projectDirPath = "";
@@ -411,6 +419,10 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
 				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tylerharden/porchlight/main/apps/macos/appcast.xml";
+				INFOPLIST_KEY_SUPublicEDKey = "OHSRyLGqkXxkzdatO3/tK0iIb+18lJnNtbLQXEzl3Xg=";
+				INFOPLIST_KEY_SUScheduledCheckInterval = 86400;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -459,6 +471,10 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
 				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tylerharden/porchlight/main/apps/macos/appcast.xml";
+				INFOPLIST_KEY_SUPublicEDKey = "OHSRyLGqkXxkzdatO3/tK0iIb+18lJnNtbLQXEzl3Xg=";
+				INFOPLIST_KEY_SUScheduledCheckInterval = 86400;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -565,6 +581,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		000000000000000170000000 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		000000000000000171000000 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 000000000000000170000000 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 000000000000000000000000 /* Project object */;
 }

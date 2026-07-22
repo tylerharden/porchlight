@@ -1,9 +1,11 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 struct MainWindowView: View {
     @Bindable var viewModel: ServerListViewModel
     @Bindable var settings: AppSettings
+    let updaterController: SPUStandardUpdaterController
     @State private var groupStore = ServerGroupStore()
     @State private var selectedTab = PorchlightTab.servers
     @State private var selectedServerID: LocalServer.ID?
@@ -30,7 +32,7 @@ struct MainWindowView: View {
             case .settings:
                 scrollingPane { SettingsTabView(settings: settings) }
             case .about:
-                scrollingPane { AboutTabView() }
+                scrollingPane { AboutTabView(updaterController: updaterController) }
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -149,7 +151,11 @@ struct CompactLoadingState: View {
         PorchlightPreviewData.hiddenServer,
     ]
     vm.hasLoadedServers = true
-    return MainWindowView(viewModel: vm, settings: AppSettings())
+    return MainWindowView(
+        viewModel: vm,
+        settings: AppSettings(),
+        updaterController: SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+    )
         .frame(width: 680, height: 520)
 }
 #endif

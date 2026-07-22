@@ -1,11 +1,17 @@
 import AppKit
+import Sparkle
 
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static var sharedDelegate: AppDelegate?
     private let settings = AppSettings()
-    private lazy var mainWindowController = SettingsWindowController(settings: settings)
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
+    private lazy var mainWindowController = SettingsWindowController(settings: settings, updaterController: updaterController)
     private var statusBarController: StatusBarController?
     private var settingsObserver: NSObjectProtocol?
 
@@ -49,6 +55,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let show = NSMenuItem(title: "Show Porchlight", action: #selector(showPorchlight), keyEquivalent: "0")
         show.target = self
         appMenu.addItem(show)
+
+        let checkForUpdates = NSMenuItem(
+            title: Strings.About.checkForUpdates,
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: ""
+        )
+        checkForUpdates.target = updaterController
+        appMenu.addItem(checkForUpdates)
 
         appMenu.addItem(.separator())
 

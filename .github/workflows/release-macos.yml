@@ -132,6 +132,44 @@ jobs:
           cd "$RUNNER_TEMP"
           shasum -a 256 "Porchlight-${{ inputs.version }}.dmg" > "Porchlight-${{ inputs.version }}.dmg.sha256"
 
+      - name: Download Sparkle CLI tools
+        run: |
+          curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.9.4/Sparkle-2.9.4.tar.xz" \
+            | tar xJ -C "$RUNNER_TEMP"
+
+      - name: Generate appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/appcast-source"
+          echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key.txt"
+          if [ -f apps/macos/appcast.xml ]; then
+            cp apps/macos/appcast.xml "$RUNNER_TEMP/appcast-source/appcast.xml"
+          fi
+          cp "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg" "$RUNNER_TEMP/appcast-source/"
+          "$RUNNER_TEMP/bin/generate_appcast" \
+            --ed-key-file "$RUNNER_TEMP/sparkle_key.txt" \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/macos-v${{ inputs.version }}/" \
+            -o "$RUNNER_TEMP/appcast-source/appcast.xml" \
+            "$RUNNER_TEMP/appcast-source"
+          rm -f "$RUNNER_TEMP/sparkle_key.txt"
+          cp "$RUNNER_TEMP/appcast-source/appcast.xml" apps/macos/appcast.xml
+
+      - name: Commit and push appcast.xml
+        run: |
+          git add apps/macos/appcast.xml
+          git commit -m "chore(macos): update appcast for v${{ inputs.version }}"
+
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            echo "Push rejected (attempt $i), fetching and rebasing..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 4 + 1))
+          done
+
       - name: Create release and upload
         env:
           GH_TOKEN: ${{ github.token }}
