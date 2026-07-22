@@ -54,3 +54,39 @@ jobs:
             -destination "platform=macOS" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
+
+      - name: Verify CLI version pin guard rejects a mismatch
+        working-directory: apps/macos
+        run: |
+          # The version-mismatch guard (Validate & Generate Build Info script
+          # phase) only runs for Release builds, so the Debug test run above
+          # never exercises it. Confirm it actually still fails the build on
+          # a wrong pin, so a future regression here can't silently let a
+          # mismatched CLI version ship.
+          if xcodebuild build \
+            -project "Porchlight.xcodeproj" \
+            -scheme "Porchlight" \
+            -configuration Release \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            PORCHLIGHT_CLI_VERSION=0.0.1-deliberately-wrong \
+            > /tmp/mismatch_build.log 2>&1; then
+            echo "expected the build to fail on a CLI version mismatch, but it succeeded" >&2
+            cat /tmp/mismatch_build.log
+            exit 1
+          fi
+          grep -q "CLI version mismatch" /tmp/mismatch_build.log
+
+      - name: Build Release (verifies the CLI version pin actually matches)
+        working-directory: apps/macos
+        run: |
+          xcodebuild build \
+            -project "Porchlight.xcodeproj" \
+            -scheme "Porchlight" \
+            -configuration Release \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
