@@ -134,7 +134,7 @@ struct Strings {
         static let showAutomaticGroups: String = "Show automatic groups"
         static let automaticGroupsDescription: String = "When disabled, only groups you create manually are shown."
         static let showAppServices: String = "Show app services"
-        static let appServicesDescription: String = "When disabled, hides background listeners from apps like Adobe Creative Cloud and Ableton."
+        static let appServicesDescription: String = "When disabled, hides background listeners from other apps running on your Mac."
         static let showIcons: String = "Show icons"
         static let iconsDescription: String = "When disabled, group icons won't be shown in the list."
         static let cli: String = "CLI:"

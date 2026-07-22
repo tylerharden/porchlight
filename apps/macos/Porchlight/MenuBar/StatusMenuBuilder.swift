@@ -75,7 +75,7 @@ struct StatusMenuBuilder {
 
         menu.addItem(.separator())
 
-        menu.addItem(menuItem(title: Strings.StatusMenu.openPorchlight, action: actions.openPorchlight))
+        menu.addItem(menuItem(title: Strings.StatusMenu.openPorchlight, action: actions.openPorchlight, keyEquivalent: "o"))
         menu.addItem(menuItem(title: Strings.StatusMenu.quitPorchlight, action: actions.quit, keyEquivalent: "q"))
     }
 
@@ -305,12 +305,31 @@ struct StatusMenuBuilder {
 
         if server.pinned {
             title.append(NSAttributedString(string: "  "))
-            title.append(NSAttributedString(
-                string: "📌",
-                attributes: [
-                    .font: NSFont.menuFont(ofSize: 0)
-                ]
-            ))
+
+            let menuFont = NSFont.menuFont(ofSize: 0)
+            let symbolConfig = NSImage.SymbolConfiguration(pointSize: menuFont.pointSize * 0.7, weight: .regular)
+            let pinImage = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: nil)?
+                .withSymbolConfiguration(symbolConfig)
+            pinImage?.isTemplate = true
+
+            let attachment = NSTextAttachment()
+            attachment.image = pinImage
+            if let imageSize = pinImage?.size {
+                attachment.bounds = CGRect(
+                    x: 0,
+                    y: (menuFont.capHeight - imageSize.height) / 2,
+                    width: imageSize.width,
+                    height: imageSize.height
+                )
+            }
+
+            let pinAttributedString = NSMutableAttributedString(attachment: attachment)
+            pinAttributedString.addAttribute(
+                .foregroundColor,
+                value: NSColor.secondaryLabelColor,
+                range: NSRange(location: 0, length: pinAttributedString.length)
+            )
+            title.append(pinAttributedString)
         }
 
         return title

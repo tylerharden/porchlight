@@ -127,7 +127,7 @@ Use repeatable `--command` and `--path` flags for matching rules. If both comman
 
 `group` is present when either a user-defined Group matches or automatic classification has enough local evidence. User-defined Groups take precedence over automatic classification and emit `source: "manual group"`, `confidence: 1.0`, and a `color` when configured.
 
-Use `porchlight list --no-auto-groups` to hide automatically inferred groups while keeping user-defined Groups enabled. Use `porchlight list --no-app-services` to hide app-bundle background listeners classified as `Application Service`, such as Adobe Creative Cloud or Ableton helper servers. The macOS app exposes the same behavior in **Settings > Groups**.
+Use `porchlight list --no-auto-groups` to hide automatically inferred groups while keeping user-defined Groups enabled. Use `porchlight list --no-app-services` to hide app-bundle background listeners classified as `Application Service`, such as helper servers spawned by other installed apps. The macOS app exposes the same behavior in **Settings > Groups**.
 
 ## Automatic Classification
 
