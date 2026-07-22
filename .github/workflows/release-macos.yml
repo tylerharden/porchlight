@@ -1,39 +1,135 @@
-name: macOS App Release
+name: macOS Release
 
 on:
-  workflow_call:
-    inputs:
-      ref:
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
-      ref:
+      version:
+        description: "Version to release, e.g. 1.2.0 (no 'macos-v' prefix)"
         required: true
         type: string
-        default: main
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    name: Trigger & Wait for Xcode Cloud
-    runs-on: ubuntu-latest
+    name: Bump, Archive, Notarize & Release
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
+      - name: Bump version
+        run: |
+          sed -i.bak "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${{ inputs.version }};/g" apps/macos/Porchlight.xcodeproj/project.pbxproj
+          rm -f apps/macos/Porchlight.xcodeproj/project.pbxproj.bak
+          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
 
-      - name: Trigger Xcode Cloud build
+      - name: Commit, tag, and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add apps/macos/Porchlight.xcodeproj/project.pbxproj
+          git commit -m "chore(macos): bump version to ${{ inputs.version }}"
+
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            echo "Push rejected (attempt $i), fetching and rebasing..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 4 + 1))
+          done
+
+          git tag "macos-v${{ inputs.version }}"
+          git push origin "macos-v${{ inputs.version }}"
+
+      - name: Import signing certificate
+        env:
+          DEVELOPER_ID_CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 }}
+          DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          echo -n "$DEVELOPER_ID_CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$DEVELOPER_ID_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # shellcheck disable=SC2046  # intentional word-splitting: each existing keychain needs to be a separate arg
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
+
+          rm -f "$CERT_PATH"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Install Rust targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project apps/macos/Porchlight.xcodeproj \
+            -scheme Porchlight \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM=TLFCRD5283 \
+            PORCHLIGHT_CLI_SOURCE=registry
+
+      - name: Export
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist apps/macos/exportOptions-developer-id.plist
+
+      - name: Notarize
         env:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-          ASC_WORKFLOW_ID: "5F690A2E-9269-47A8-8F18-F07A414AF0C7" # Deploy by Tag
         run: |
-          pip install --quiet cryptography
-          python3 .github/scripts/trigger_xcode_cloud_build.py
+          KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          echo "$ASC_PRIVATE_KEY" > "$KEY_PATH"
+
+          cd "$RUNNER_TEMP/export"
+          ditto -c -k --keepParent Porchlight.app Porchlight.zip
+
+          xcrun notarytool submit Porchlight.zip \
+            --key "$KEY_PATH" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait
+
+          xcrun stapler staple Porchlight.app
+          rm -f "$KEY_PATH" Porchlight.zip
+
+      - name: Package as DMG
+        run: |
+          hdiutil create -volname "Porchlight" \
+            -srcfolder "$RUNNER_TEMP/export/Porchlight.app" \
+            -ov -format UDZO \
+            "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg"
+          cd "$RUNNER_TEMP"
+          shasum -a 256 "Porchlight-${{ inputs.version }}.dmg" > "Porchlight-${{ inputs.version }}.dmg.sha256"
+
+      - name: Create release and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "macos-v${{ inputs.version }}" \
+            "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg" \
+            "$RUNNER_TEMP/Porchlight-${{ inputs.version }}.dmg.sha256" \
+            --title "macOS v${{ inputs.version }}" \
+            --generate-notes \
+            --repo "${{ github.repository }}"
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH" || true

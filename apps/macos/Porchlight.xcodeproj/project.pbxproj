@@ -79,6 +79,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "Porchlight" */;
 			buildPhases = (
+				000000000000000160000000 /* Validate & Generate Build Info */,
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000150000000 /* Bundle porchlight CLI */,
@@ -169,6 +170,35 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		000000000000000160000000 /* Validate & Generate Build Info */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			name = "Validate & Generate Build Info";
+			outputPaths = (
+				"$(SRCROOT)/Porchlight/Generated/BuildInfo.swift",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"set -eu",
+				"OUTPUT=\"${SRCROOT}/Porchlight/Generated/BuildInfo.swift\"",
+				"if [ \"${PORCHLIGHT_CLI_SOURCE:-local}\" != \"registry\" ] && [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
+				"  CLI_ACTUAL_VERSION=$(grep \"^version\" \"${CLI_DIR}/Cargo.toml\" | head -1 | sed -E \"s/version = .(.*)./\\1/\")",
+				"  if [ \"${CLI_ACTUAL_VERSION}\" != \"${PORCHLIGHT_CLI_VERSION}\" ]; then",
+				"    echo \"error: CLI version mismatch. Xcode project pins PORCHLIGHT_CLI_VERSION=${PORCHLIGHT_CLI_VERSION} but cli/Cargo.toml is at ${CLI_ACTUAL_VERSION}. Update PORCHLIGHT_CLI_VERSION in project.pbxproj if this CLI change is intentional.\" >&2",
+				"    exit 1",
+				"  fi",
+				"fi",
+				"echo \"// Generated at build time by the Validate and Generate Build Info script\" > \"${OUTPUT}\"",
+				"echo \"// phase from the PORCHLIGHT_CLI_VERSION build setting. Committed with the\" >> \"${OUTPUT}\"",
+				"echo \"// current correct value so local/CI builds produce no diff when the CLI\" >> \"${OUTPUT}\"",
+				"echo \"// version has not changed -- do not edit by hand.\" >> \"${OUTPUT}\"",
+				"echo \"enum BuildInfo {\" >> \"${OUTPUT}\"",
+				"echo \"    static let porchlightCLIVersion = \\\"${PORCHLIGHT_CLI_VERSION}\\\"\" >> \"${OUTPUT}\"",
+				"echo \"}\" >> \"${OUTPUT}\"",
+				"",
+			);
+		};
 		000000000000000150000000 /* Bundle porchlight CLI */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -179,11 +209,31 @@
 			shellPath = /bin/sh;
 			shellScript = (
 				"set -eu",
-				"CLI_DIR=\"${SRCROOT}/../../cli\"",
 				"export PATH=\"${HOME}/.cargo/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin\"",
-				"cargo build --manifest-path \"${CLI_DIR}/Cargo.toml\"",
-				"mkdir -p \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"",
-				"cp \"${CLI_DIR}/target/debug/porchlight\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/porchlight\"",
+				"DEST_DIR=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"",
+				"mkdir -p \"${DEST_DIR}\"",
+				"DEST=\"${DEST_DIR}/porchlight\"",
+				"if [ \"${PORCHLIGHT_CLI_SOURCE:-local}\" = \"registry\" ]; then",
+				"  INSTALL_ROOT=\"${TARGET_TEMP_DIR}/porchlight-cli-install\"",
+				"  for RUST_TARGET in aarch64-apple-darwin x86_64-apple-darwin; do",
+				"    rustup target add \"$RUST_TARGET\" >/dev/null 2>&1 || true",
+				"    cargo install porchlight --version \"${PORCHLIGHT_CLI_VERSION}\" --target \"$RUST_TARGET\" --root \"${INSTALL_ROOT}/${RUST_TARGET}\" --locked --force",
+				"  done",
+				"  lipo -create -output \"${DEST}\" \\",
+				"    \"${INSTALL_ROOT}/aarch64-apple-darwin/bin/porchlight\" \\",
+				"    \"${INSTALL_ROOT}/x86_64-apple-darwin/bin/porchlight\"",
+				"elif [ \"${CONFIGURATION}\" = \"Release\" ]; then",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
+				"  cargo build --release --manifest-path \"${CLI_DIR}/Cargo.toml\"",
+				"  cp \"${CLI_DIR}/target/release/porchlight\" \"${DEST}\"",
+				"else",
+				"  CLI_DIR=\"${SRCROOT}/../../cli\"",
+				"  cargo build --manifest-path \"${CLI_DIR}/Cargo.toml\"",
+				"  cp \"${CLI_DIR}/target/debug/porchlight\" \"${DEST}\"",
+				"fi",
+				"if [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then",
+				"  codesign --force --options runtime --timestamp --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" \"${DEST}\"",
+				"fi",
 				"",
 			);
 		};
@@ -353,10 +403,12 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = TLFCRD5283;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Porchlight;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
 				INFOPLIST_KEY_NSHighResolutionCapable = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -371,7 +423,9 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 1.0.0;
+				PORCHLIGHT_CLI_SOURCE = local;
+				PORCHLIGHT_CLI_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
 				REGISTER_APP_GROUPS = YES;
@@ -397,10 +451,12 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = TLFCRD5283;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Porchlight;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSMinimumSystemVersion = 14.0;
 				INFOPLIST_KEY_NSHighResolutionCapable = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -415,7 +471,9 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 1.0.0;
+				PORCHLIGHT_CLI_SOURCE = local;
+				PORCHLIGHT_CLI_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.tylerharden.porchlight;
 				PRODUCT_NAME = Porchlight;
 				REGISTER_APP_GROUPS = YES;

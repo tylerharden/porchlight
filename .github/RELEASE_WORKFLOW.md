@@ -2,173 +2,75 @@
 
 ## Overview
 
-Porchlight uses a semantic versioning system with a single version number across all platforms (CLI, macOS, and future Windows/Linux builds).
+The CLI and macOS app release **independently**, each with its own version number and its own platform-prefixed tag (`cli-vX.Y.Z`, `macos-vX.Y.Z`). A CLI-only fix doesn't force a no-op macOS release, and vice versa.
 
-When you create a release with a `v*` tag:
+Both are cut entirely from GitHub Actions — no local script, no terminal required. Each workflow bumps its version, commits, tags, pushes, builds, and creates the GitHub Release with the built artifact attached, all in one `workflow_dispatch` run.
 
-1. GitHub Actions workflow automatically extracts the version
-2. Updates version numbers in all platform-specific files (Cargo.toml, Xcode project)
-3. Commits the version updates back to main
-4. Xcode Cloud automatically triggers builds (via git tag)
-5. Sends Slack notification when release is published
+### Why one workflow does everything, not a release event fanning out
+
+The obvious alternative — a workflow creates a release, and *that* triggers separate build workflows via `release: published` — runs into a real GitHub Actions limitation: events caused by the default `GITHUB_TOKEN` don't trigger other workflows' event listeners (this prevents infinite recursive workflow chains). A release created by a workflow using `GITHUB_TOKEN` would silently never kick off anything listening for it. The usual fix is a personal access token or GitHub App token dedicated to this, but that's real infrastructure to maintain for a single-maintainer project.
+
+Since each platform's entire pipeline (bump → tag → build → release) runs inside **one** workflow rather than being split across a release event and separate listeners, there's no cross-workflow triggering happening at all — so `GITHUB_TOKEN` works fine.
+
+### Why independent versions, not one shared number
+
+The macOS app doesn't consume a pre-built CLI release artifact — it compiles `cli/` from source at build time (the "Bundle porchlight CLI" script phase). So there's nothing to coordinate by sharing a version number; the two components were never really versioned as one thing, just labeled that way. Independent versions mean a platform only gets a new release (and a changelog entry) when something in it actually changed.
 
 ## Creating a Release
 
-### Step 1: Create a Git Tag
+**GitHub Actions tab** → **CLI Release** or **macOS Release** → **Run workflow** → enter the version (no prefix, e.g. `0.3.1`) → **Run workflow**.
+
+Or from the terminal:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+gh workflow run release-cli.yml -f version=0.3.1
+gh workflow run release-macos.yml -f version=1.2.0
 ```
 
-**Tag format:** `v` followed by semantic version (`vX.Y.Z`)
+**`release-cli.yml`**: bumps `cli/Cargo.toml`, commits, tags `cli-v0.3.1`, pushes, builds a universal (arm64 + x86_64) CLI binary, creates the GitHub Release with the binary + sha256 checksum attached.
 
-**Note:** You don't need to manually update version numbers. Xcode Cloud will automatically extract the version from the tag and update the app version before building.
+**`release-macos.yml`**: bumps the Xcode project's `MARKETING_VERSION`, commits, tags `macos-v1.2.0`, pushes, archives the app, code-signs with a Developer ID Application certificate, notarizes via `notarytool`, staples the ticket, packages as a `.dmg`, creates the GitHub Release with the `.dmg` + checksum attached.
 
-### Step 2: Create GitHub Release
+Both run under the repo's own `GITHUB_TOKEN` — nobody needs their personal GitHub credentials on hand to cut a release.
 
-Go to [Releases](https://github.com/tylerharden/porchlight/releases) and create a new release:
+## The CLI Version Pin
 
-- **Tag:** `v0.2.0` (the tag you just pushed)
-- **Title:** `v0.2.0`
-- **Description:** Release notes with changes, improvements, and bug fixes
-- **Publish release:** Check the "Publish this release" checkbox
+Since the macOS app builds the CLI from source rather than consuming a release, "which CLI version does this macOS build embed" needed an explicit answer instead of "whatever happened to be on `main`." `PORCHLIGHT_CLI_VERSION` (an Xcode build setting in `project.pbxproj`) is that pin — analogous to a pinned dependency version. The "Validate & Generate Build Info" script phase fails the Release build if `cli/Cargo.toml`'s actual version doesn't match the pin, and bakes the confirmed value into a compiled Swift constant (`Generated/BuildInfo.swift`) that the About tab reads directly.
 
-When the release is published:
-- GitHub Actions extracts version from tag and updates CLI version
-- Xcode Cloud detects the tag and automatically starts building
-- Xcode Cloud post-clone script updates macOS app version to match tag
-- Build proceeds with correct version in all components
+Cutting a CLI release does **not** move this pin automatically — that's deliberate, so a macOS release always embeds a CLI version you've explicitly chosen, not just whatever CLI work happened to land most recently. To pick up a new CLI release in the next macOS build, update `PORCHLIGHT_CLI_VERSION` in the Xcode project first (commit that change to `main` before running the macOS Release workflow). If the pin and `cli/Cargo.toml` disagree, the Archive step fails loudly with the exact mismatch.
 
-### Workflow Automation
+## Distribution
 
-When the release is published:
-
-1. **Version Update Stage**
-   - GitHub Actions extracts version from tag (`v0.2.0` → `0.2.0`)
-   - Updates `cli/Cargo.toml`
-   - Updates `apps/macos/Porchlight.xcodeproj/project.pbxproj`
-   - Commits changes back to main branch
-
-2. **Build Stage**
-   - Xcode Cloud detects the `v*` tag
-   - Automatically starts release builds for macOS
-
-3. **Notification Stage**
-   - Sends Slack message with release details
-   - Includes version, repository link, and release link
-
-## Setup Requirements
-
-### GitHub Secrets
-
-Add these secrets to your GitHub repository settings (`Settings > Secrets and variables > Actions`):
-
-- **`SLACK_WEBHOOK`** - Slack webhook URL for notifications
-  - Get this from your Slack workspace: Incoming Webhooks integration
-  - Optional if you don't want Slack notifications
-
-### Xcode Cloud Configuration
-
-Xcode Cloud watches your GitHub repository for tags matching `v*` and automatically starts builds. The manifest is stored at:
-
-```
-apps/macos/Porchlight.xcodeproj/xcshareddata/xcodecloud/manifest.json
-```
-
-Configure your Xcode Cloud build workflow in Xcode:
-1. Open the project in Xcode
-2. Go to **Product → Xcode Cloud → Manage Workflows**
-3. Create a workflow that builds on tag pattern `v*`
-4. Configure signing and distribution settings
+Porchlight is distributed as a notarized `.dmg` for direct download — not through the Mac App Store. That path was tried (Xcode Cloud, `ENABLE_APP_SANDBOX`, the works) and ruled out: the Mac App Store requires App Sandbox for every submission, and Porchlight's core function — scanning the whole system for listening ports and inspecting other processes to find local dev servers — is exactly the class of behavior App Sandbox exists to prevent. Confirmed empirically: sandboxed, the CLI helper that does all the actual scanning crashes immediately on every launch attempt (`AppSandbox` abort in `libsystem_secinit.dylib`) before it can do anything. There's no entitlement that grants a general sandboxed app that kind of system-wide visibility. Making Porchlight App Store-eligible would mean abandoning system-wide discovery entirely — a different product, not a config change.
 
 ## Version Numbers by Component
 
-| Component | File | Version Format |
-|-----------|------|-----------------|
-| Rust CLI | `cli/Cargo.toml` | `version = "0.2.0"` |
-| macOS App | `apps/macos/Porchlight.xcodeproj/project.pbxproj` | `MARKETING_VERSION = 0.2.0;` |
-
-All versions are synchronized automatically by the GitHub Actions workflow.
-
-## Examples
-
-### Creating a Minor Release
-
-```bash
-# Current version is 0.1.0, bumping to 0.2.0
-git tag v0.2.0
-git push origin v0.2.0
-
-# Go to GitHub Releases, create release from v0.2.0 tag
-# Add release notes and publish
-
-# Workflow automatically:
-# - Updates Cargo.toml to 0.2.0
-# - Updates Xcode project to 0.2.0
-# - Commits back to main
-# - Xcode Cloud starts building
-# - Slack notification sent
-```
-
-### Creating a Patch Release
-
-```bash
-# Current version is 0.2.0, bumping to 0.2.1
-git tag v0.2.1
-git push origin v0.2.1
-
-# GitHub → Releases → Create from tag
-# Workflow handles the rest
-```
-
-## Manual Testing
-
-To test the workflow without creating a real release:
-
-```bash
-# Create a test tag
-git tag v0.1.0-test
-git push origin v0.1.0-test
-
-# Go to GitHub and create a release from this tag
-# Workflow runs, commits version updates, sends notification
-
-# Clean up test tag
-git tag -d v0.1.0-test
-git push --delete origin v0.1.0-test
-```
+| Component | File | Tag prefix | Version Format |
+|-----------|------|------------|-----------------|
+| Rust CLI | `cli/Cargo.toml` | `cli-v` | `version = "0.3.1"` |
+| macOS App | `apps/macos/Porchlight.xcodeproj/project.pbxproj` | `macos-v` | `MARKETING_VERSION = 1.2.0;` |
+| CLI pin (macOS build) | `apps/macos/Porchlight.xcodeproj/project.pbxproj` | — | `PORCHLIGHT_CLI_VERSION = 0.3.1;` |
 
 ## Monitoring
 
-- **GitHub Actions**: Watch the **Actions** tab for workflow progress
-- **Slack**: Receive notifications in your configured Slack channel
-- **Xcode Cloud**: View detailed build logs in the Xcode Cloud dashboard
-- **Main Branch**: Version updates are automatically committed to `main`
+- **GitHub Actions**: Actions tab, or the `CI` / `CLI Release` / `macOS Release` badges in the README
+- **Releases page**: CLI binary + checksum, or the notarized `.dmg` + checksum, attached once the workflow finishes
 
 ## Troubleshooting
 
-### Workflow doesn't trigger
-- Ensure tag follows `v*` format (e.g., `v0.2.0`, not `macos-0.2.0`)
-- Ensure release is marked as "Published" (not draft)
-- Check GitHub Actions permissions: `Settings > Actions > General > Workflow permissions` should allow "Read and write permissions"
+### Workflow fails on `git tag` or `gh release create`
+The tag/release already exists — you're likely re-running with a version that was already released for that platform. Pick a new version.
 
-### Slack notification fails
-- Verify `SLACK_WEBHOOK` secret is set in repository settings
-- Test webhook URL is valid: `curl -X POST -H 'Content-type: application/json' --data '{"text":"Test"}' YOUR_WEBHOOK_URL`
+### macOS Release fails on notarization
+Check the `notarytool submit --wait` output in the job log — it prints Apple's actual rejection reason (common ones: hardened runtime not enabled, missing entitlements, unsigned nested binaries/frameworks). For a rejection with no detail in the log, fetch it directly:
 
-### Xcode Cloud build fails
-- Verify Xcode Cloud workflow is configured to trigger on `v*` tags
-- Check build logs in Xcode Cloud dashboard
-- Ensure macOS app builds successfully locally: `xcodebuild -project apps/macos/Porchlight.xcodeproj -scheme Porchlight -configuration Release build`
+```bash
+xcrun notarytool log <submission-id> --key <path-to-AuthKey.p8> --key-id <ASC_KEY_ID> --issuer <ASC_ISSUER_ID>
+```
 
-### Version numbers not updating
-- Check GitHub Actions workflow logs for sed command errors
-- Verify file paths in workflow match your repo structure
-- Ensure GitHub token has write permissions to repository
+### macOS Release build fails with "CLI version mismatch"
+`PORCHLIGHT_CLI_VERSION` in the Xcode project doesn't match `cli/Cargo.toml`. Update the pin (project build settings), commit to `main`, then re-run the workflow.
 
 ## Related Documentation
 
-- [Xcode Cloud Setup](../apps/macos/docs/XCODE_CLOUD_SETUP.md) — Manual configuration in Xcode Cloud UI
-- [Xcode Cloud Documentation](https://developer.apple.com/xcode-cloud/) — Apple's official docs
-- [App Store Connect](https://appstoreconnect.apple.com) — Web UI for managing builds
+- [Notarizing macOS Software](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) — Apple's official docs
