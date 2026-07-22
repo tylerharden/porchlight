@@ -1,14 +1,12 @@
 # Porchlight macOS Product Metadata
 
-Use this as the working copy for App Store Connect, GitHub Releases, and the public project page.
+Working copy of product copy for GitHub Releases and the project page.
 
 ## App Identity
 
 - Product name: Porchlight
 - Bundle identifier: `dev.tylerharden.porchlight`
 - Category: Developer Tools
-- Secondary category: Utilities
-- Version: 0.1.0
 - Copyright: Copyright (c) 2026 Tyler Harden. All rights reserved.
 
 ## Short Description
@@ -19,7 +17,7 @@ Find the local development servers you left running.
 
 Local server visibility for developers.
 
-## App Store Description
+## Description
 
 Porchlight helps developers see and manage the local servers running on their Mac.
 
@@ -41,7 +39,7 @@ Key features:
 
 Porchlight runs locally and does not send local process, port, command, or project data to Tyler Harden or third-party analytics services.
 
-## Keywords
+## Keywords / GitHub Topics
 
 developer,localhost,server,ports,menu bar,devtools,development,local,process,productivity
 
@@ -55,17 +53,11 @@ https://github.com/tylerharden/porchlight
 
 ## Privacy Policy URL
 
-https://github.com/tylerharden/porchlight/blob/main/apps/macos/docs/PRIVACY_POLICY.md
+https://github.com/tylerharden/porchlight/blob/main/PRIVACY_POLICY.md
 
 ## Terms of Use URL
 
-https://github.com/tylerharden/porchlight/blob/main/apps/macos/docs/TERMS_OF_USE.md
-
-## Review Notes
-
-Porchlight is a local developer utility. It inspects local listening TCP ports and process metadata to show development servers. The app does not create accounts, use analytics, or transmit local process/server data.
-
-The app includes a bundled Rust CLI executable used by the native macOS app to perform local scans and server actions.
+https://github.com/tylerharden/porchlight/blob/main/TERMS_OF_USE.md
 
 ## Screenshot Plan
 
