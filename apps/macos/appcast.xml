@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Porchlight</title>
+        <item>
+            <title>1.0.2</title>
+            <pubDate>Mon, 27 Jul 2026 04:00:48 +0000</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/tylerharden/porchlight/releases/download/macos-v1.0.2/Porchlight-1.0.2.dmg" length="5616627" type="application/octet-stream" sparkle:edSignature="EHdOcFO+AnD5fDzPATT2QpuuoXqpgG7V0lvyzYrQAlaqUrA7D9oBLNJeC5YTWl7ONQ6FyhrFMkV6WnFukGHJCA=="/>
+        </item>
+    </channel>
+</rss>
