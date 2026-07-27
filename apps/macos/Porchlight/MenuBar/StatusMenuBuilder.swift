@@ -112,9 +112,7 @@ struct StatusMenuBuilder {
         item.isEnabled = false
         if showGroupIcons {
             item.image = GroupIconImage.resolve(icon: group.icon, size: 12, fallbackVerticalOffset: 1).image
-            if #available(macOS 27.0, *) {
-                item.preferredImageVisibility = .visible
-            }
+            item.preferVisibleImageIfSupported()
         }
         item.attributedTitle = NSAttributedString(
             string: group.name,
@@ -140,9 +138,7 @@ struct StatusMenuBuilder {
 
         item.attributedTitle = serverMenuTitle(server)
         item.image = statusImage(isActive: server.isActive)
-        if #available(macOS 27.0, *) {
-            item.preferredImageVisibility = .visible
-        }
+        item.preferVisibleImageIfSupported()
         item.submenu = submenu(for: server, startingServerIDs: startingServerIDs, killingServerIDs: killingServerIDs)
         return item
     }
@@ -170,9 +166,7 @@ struct StatusMenuBuilder {
 
         let openAddress = menuItem(title: displayURL(server.url), action: actions.openAddress, representedObject: server.id)
         openAddress.image = serverIconImage(server)
-        if #available(macOS 27.0, *) {
-            openAddress.preferredImageVisibility = .visible
-        }
+        openAddress.preferVisibleImageIfSupported()
         submenu.addItem(openAddress)
 
         if server.workingDirectory != nil {
@@ -337,5 +331,14 @@ struct StatusMenuBuilder {
         }
 
         return host
+    }
+}
+
+private extension NSMenuItem {
+    func preferVisibleImageIfSupported() {
+        let selector = NSSelectorFromString("setPreferredImageVisibility:")
+        guard responds(to: selector) else { return }
+
+        setValue(NSNumber(value: 1), forKey: "preferredImageVisibility")
     }
 }
