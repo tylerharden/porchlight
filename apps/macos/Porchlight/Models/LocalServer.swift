@@ -119,14 +119,11 @@ struct LocalServer: Decodable, Identifiable, Hashable {
     }
 
     var lastSeenDate: Date? {
-        guard let lastSeenAt else { return nil }
-        return ISO8601DateFormatter.porchlight.date(from: lastSeenAt)
-            ?? ISO8601DateFormatter.porchlightWithFractionalSeconds.date(from: lastSeenAt)
+        RelativeTimestampFormatter.date(from: lastSeenAt)
     }
 
     var lastSeenText: String? {
-        guard let lastSeenDate else { return lastSeenAt }
-        return RelativeDateTimeFormatter.porchlight.localizedString(for: lastSeenDate, relativeTo: Date())
+        RelativeTimestampFormatter.localizedString(for: lastSeenAt)
     }
 
     var canOpenInXcode: Bool {
@@ -145,28 +142,6 @@ struct ServerGroupMatch: Codable, Hashable {
     let icon: String?
     let confidence: Double
     let source: String
-}
-
-private extension ISO8601DateFormatter {
-    static let porchlight: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    static let porchlightWithFractionalSeconds: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-}
-
-private extension RelativeDateTimeFormatter {
-    static let porchlight: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter
-    }()
 }
 
 enum ServerStatus: String, Decodable {

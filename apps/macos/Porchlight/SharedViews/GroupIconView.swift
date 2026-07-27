@@ -6,34 +6,15 @@ struct GroupIconView: View {
     var size: CGFloat = 12
 
     var body: some View {
-        if let image = iconImage {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
-        } else {
-            Circle()
-                .fill(Color(hex: color))
-                .frame(width: size, height: size)
-        }
-    }
+        let resolvedIcon = GroupIconImage.resolve(icon: icon, size: size)
 
-    private var iconImage: NSImage? {
-        guard let icon = icon?.trimmingCharacters(in: .whitespacesAndNewlines), !icon.isEmpty else {
-            return nil
-        }
-
-        let path: String
-        if let url = URL(string: icon), url.isFileURL {
-            path = url.path
-        } else if icon.hasPrefix("~") {
-            path = (icon as NSString).expandingTildeInPath
-        } else {
-            path = icon
-        }
-
-        return NSImage(contentsOfFile: path)
+        Image(nsImage: resolvedIcon.image)
+            .resizable()
+            .renderingMode(resolvedIcon.isFallback ? .template : .original)
+            .scaledToFit()
+            .foregroundStyle(.secondary)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: resolvedIcon.isFallback ? 0 : size * 0.2, style: .continuous))
     }
 }
 

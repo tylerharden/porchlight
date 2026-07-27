@@ -178,23 +178,23 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func openAddress(_ sender: NSMenuItem) {
-        guard let server = server(for: sender), let url = URL(string: server.url) else { return }
-        NSWorkspace.shared.open(url)
+        guard let server = server(for: sender) else { return }
+        ServerActions.open(server)
     }
 
     @objc private func openInFinder(_ sender: NSMenuItem) {
-        guard let server = server(for: sender), let workingDirectory = server.workingDirectory else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
+        guard let server = server(for: sender) else { return }
+        ServerActions.openInFinder(server)
     }
 
     @objc private func openInVSCode(_ sender: NSMenuItem) {
-        guard let server = server(for: sender), let workingDirectory = server.workingDirectory else { return }
-        runAppCommand("/usr/local/bin/code", argument: workingDirectory)
+        guard let server = server(for: sender) else { return }
+        ServerActions.openInVSCode(server)
     }
 
     @objc private func openInXcode(_ sender: NSMenuItem) {
-        guard let server = server(for: sender), let workingDirectory = server.workingDirectory else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
+        guard let server = server(for: sender) else { return }
+        ServerActions.openInXcode(server)
     }
 
     @objc private func copyCommand(_ sender: NSMenuItem) {
@@ -206,20 +206,14 @@ final class StatusBarController: NSObject {
     @objc private func startServer(_ sender: Any?) {
         guard let serverID = sender as? String,
               let server = servers.first(where: { $0.id == serverID }),
-              let startCommand = server.resolvedStartCommand,
+              server.resolvedStartCommand != nil,
               !startingServerIDs.contains(server.id)
         else { return }
 
         startingServerIDs.insert(server.id)
         repaintOpenMenu()
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", startCommand]
-        if let workingDirectory = server.workingDirectory {
-            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-        }
-        try? process.run()
+        try? ServerActions.start(server)
 
         Task { [weak self] in
             await self?.refreshUntilActive(serverID: server.id)
@@ -331,13 +325,6 @@ final class StatusBarController: NSObject {
             }
             await refresh()
         }
-    }
-
-    private func runAppCommand(_ executable: String, argument: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = [argument]
-        try? process.run()
     }
 }
 

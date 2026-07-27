@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 @MainActor
@@ -99,20 +98,14 @@ final class ServerListViewModel {
     }
 
     func start(_ server: LocalServer) async {
-        guard let startCommand = server.resolvedStartCommand else { return }
+        guard server.resolvedStartCommand != nil else { return }
         guard !startingServerIDs.contains(server.id) else { return }
 
         startingServerIDs.insert(server.id)
         defer { startingServerIDs.remove(server.id) }
 
         do {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-lc", startCommand]
-            if let workingDirectory = server.workingDirectory {
-                process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-            }
-            try process.run()
+            try ServerActions.start(server)
             errorMessage = nil
             await refresh()
             await refreshUntilActive(serverID: server.id)
@@ -153,29 +146,18 @@ final class ServerListViewModel {
     }
 
     func open(_ server: LocalServer) {
-        guard let url = URL(string: server.url) else { return }
-        NSWorkspace.shared.open(url)
+        ServerActions.open(server)
     }
 
     func openInFinder(_ server: LocalServer) {
-        guard let workingDirectory = server.workingDirectory else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
+        ServerActions.openInFinder(server)
     }
 
     func openInVSCode(_ server: LocalServer) {
-        guard let workingDirectory = server.workingDirectory else { return }
-        runAppCommand("/usr/local/bin/code", argument: workingDirectory)
+        ServerActions.openInVSCode(server)
     }
 
     func openInXcode(_ server: LocalServer) {
-        guard let workingDirectory = server.workingDirectory else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: workingDirectory))
-    }
-
-    private func runAppCommand(_ executable: String, argument: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = [argument]
-        try? process.run()
+        ServerActions.openInXcode(server)
     }
 }

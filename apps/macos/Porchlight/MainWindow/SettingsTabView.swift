@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct SettingsTabView: View {
@@ -6,7 +5,6 @@ struct SettingsTabView: View {
     @State private var groupStore = ServerGroupStore()
     @State private var isConfirmingReset = false
     @State private var isResetting = false
-    private let readmeURL = URL(string: "https://github.com/tylerharden/porchlight#readme")!
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -70,7 +68,7 @@ struct SettingsTabView: View {
                 HStack {
                     Text(Strings.Settings.manageFromTerminal)
                     Spacer()
-                    Button(Strings.Settings.showMeHow) { open(readmeURL) }
+                    Button(Strings.Settings.showMeHow) { WorkspaceOpener.open(PorchlightLinks.readme) }
                 }
             }
 
@@ -114,9 +112,6 @@ struct SettingsTabView: View {
         await groupStore.load()
     }
 
-    private func open(_ url: URL) {
-        NSWorkspace.shared.open(url)
-    }
 }
 
 struct PreferenceRow<Content: View>: View {
@@ -134,23 +129,6 @@ struct PreferenceRow<Content: View>: View {
     }
 }
 
-struct LinkButton: View {
-    let title: String
-    let url: URL
-
-    init(_ title: String, url: URL) {
-        self.title = title
-        self.url = url
-    }
-
-    var body: some View {
-        Button(title) {
-            NSWorkspace.shared.open(url)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.blue)
-    }
-}
 
 #if DEBUG
 #Preview {

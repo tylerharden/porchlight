@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct ServerGroupsDocument: Codable {
@@ -67,19 +66,11 @@ struct GroupSummary: Decodable, Identifiable, Hashable {
     }
 
     var firstSeenText: String? {
-        relativeText(for: firstSeenAt)
+        RelativeTimestampFormatter.localizedString(for: firstSeenAt)
     }
 
     var lastSeenText: String? {
-        relativeText(for: lastSeenAt)
-    }
-
-    private func relativeText(for timestamp: String?) -> String? {
-        guard let timestamp else { return nil }
-        let date = ISO8601DateFormatter.groupSummary.date(from: timestamp)
-            ?? ISO8601DateFormatter.groupSummaryWithFractionalSeconds.date(from: timestamp)
-        guard let date else { return timestamp }
-        return RelativeDateTimeFormatter.groupSummary.localizedString(for: date, relativeTo: Date())
+        RelativeTimestampFormatter.localizedString(for: lastSeenAt)
     }
 }
 
@@ -295,53 +286,3 @@ final class ServerGroupStore {
     }
 }
 
-extension Color {
-    init(hex: String) {
-        let value = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        let scanner = Scanner(string: value)
-        var rgb: UInt64 = 0
-
-        guard value.count == 6, scanner.scanHexInt64(&rgb) else {
-            self.init(nsColor: .systemGray)
-            return
-        }
-
-        self.init(
-            red: Double((rgb & 0xFF0000) >> 16) / 255,
-            green: Double((rgb & 0x00FF00) >> 8) / 255,
-            blue: Double(rgb & 0x0000FF) / 255
-        )
-    }
-
-    var hexString: String {
-        let color = NSColor(self).usingColorSpace(.sRGB) ?? .systemGreen
-        return String(
-            format: "#%02X%02X%02X",
-            Int(round(color.redComponent * 255)),
-            Int(round(color.greenComponent * 255)),
-            Int(round(color.blueComponent * 255))
-        )
-    }
-}
-
-private extension ISO8601DateFormatter {
-    static let groupSummary: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    static let groupSummaryWithFractionalSeconds: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-}
-
-private extension RelativeDateTimeFormatter {
-    static let groupSummary: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter
-    }()
-}

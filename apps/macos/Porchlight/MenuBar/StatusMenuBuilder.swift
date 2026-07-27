@@ -111,7 +111,10 @@ struct StatusMenuBuilder {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.isEnabled = false
         if showGroupIcons {
-            item.image = groupIconImage(group.icon)
+            item.image = GroupIconImage.resolve(icon: group.icon, size: 12, fallbackVerticalOffset: 1).image
+            if #available(macOS 27.0, *) {
+                item.preferredImageVisibility = .visible
+            }
         }
         item.attributedTitle = NSAttributedString(
             string: group.name,
@@ -137,6 +140,9 @@ struct StatusMenuBuilder {
 
         item.attributedTitle = serverMenuTitle(server)
         item.image = statusImage(isActive: server.isActive)
+        if #available(macOS 27.0, *) {
+            item.preferredImageVisibility = .visible
+        }
         item.submenu = submenu(for: server, startingServerIDs: startingServerIDs, killingServerIDs: killingServerIDs)
         return item
     }
@@ -164,6 +170,9 @@ struct StatusMenuBuilder {
 
         let openAddress = menuItem(title: displayURL(server.url), action: actions.openAddress, representedObject: server.id)
         openAddress.image = serverIconImage(server)
+        if #available(macOS 27.0, *) {
+            openAddress.preferredImageVisibility = .visible
+        }
         submenu.addItem(openAddress)
 
         if server.workingDirectory != nil {
@@ -223,7 +232,7 @@ struct StatusMenuBuilder {
         submenu.addItem(menuItem(title: Strings.ServerDetail.visualStudioCode, action: actions.openInVSCode, representedObject: server.id))
 
         let xcode = menuItem(title: Strings.ServerDetail.xcode, action: actions.openInXcode, representedObject: server.id)
-        xcode.isEnabled = canOpenInXcode(server)
+        xcode.isEnabled = server.canOpenInXcode
         submenu.addItem(xcode)
 
         return submenu
@@ -251,28 +260,8 @@ struct StatusMenuBuilder {
         return item
     }
 
-    private func groupIconImage(_ icon: String?) -> NSImage? {
-        guard let icon = icon?.trimmingCharacters(in: .whitespacesAndNewlines), !icon.isEmpty else {
-            return nil
-        }
-
-        let path: String
-        if let url = URL(string: icon), url.isFileURL {
-            path = url.path
-        } else if icon.hasPrefix("~") {
-            path = (icon as NSString).expandingTildeInPath
-        } else {
-            path = icon
-        }
-
-        guard let image = NSImage(contentsOfFile: path) else { return nil }
-        image.size = NSSize(width: 14, height: 14)
-        image.isTemplate = false
-        return image
-    }
-
     private func serverIconImage(_ server: LocalServer) -> NSImage? {
-        groupIconImage(server.icon ?? server.group?.icon)
+        GroupIconImage.resolve(icon: server.icon ?? server.group?.icon, size: 14).image
     }
 
     private func statusImage(isActive: Bool) -> NSImage {
@@ -333,12 +322,6 @@ struct StatusMenuBuilder {
         }
 
         return title
-    }
-
-    private func canOpenInXcode(_ server: LocalServer) -> Bool {
-        guard let workingDirectory = server.workingDirectory else { return false }
-        let contents = (try? FileManager.default.contentsOfDirectory(atPath: workingDirectory)) ?? []
-        return contents.contains { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }
     }
 
     private func shortened(_ value: String, limit: Int) -> String {

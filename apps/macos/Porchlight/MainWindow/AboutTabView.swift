@@ -1,13 +1,8 @@
-import AppKit
 import Sparkle
 import SwiftUI
 
 struct AboutTabView: View {
     let updaterController: SPUStandardUpdaterController
-    private let repositoryURL = URL(string: "https://github.com/tylerharden/porchlight")!
-    private let issuesURL = URL(string: "https://github.com/tylerharden/porchlight/issues/new")!
-    private let termsURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/TERMS_OF_USE.md")!
-    private let privacyURL = URL(string: "https://github.com/tylerharden/porchlight/blob/main/PRIVACY_POLICY.md")!
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -31,13 +26,13 @@ struct AboutTabView: View {
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        LinkButton(Strings.About.acknowledgementsLink, url: repositoryURL)
-                        LinkButton(Strings.About.privacyPolicyLink, url: privacyURL)
-                        LinkButton(Strings.About.termsOfUseLink, url: termsURL)
+                        LinkButton(Strings.About.acknowledgementsLink, url: PorchlightLinks.repository)
+                        LinkButton(Strings.About.privacyPolicyLink, url: PorchlightLinks.privacyPolicy)
+                        LinkButton(Strings.About.termsOfUseLink, url: PorchlightLinks.termsOfUse)
                     }
                     .padding(.top, 10)
 
-                    Button(Strings.About.reportIssue) { open(issuesURL) }
+                    Button(Strings.About.reportIssue) { WorkspaceOpener.open(PorchlightLinks.issues) }
                         .padding(.top, 10)
 
                     Button(Strings.About.checkForUpdates) { updaterController.checkForUpdates(nil) }
@@ -59,9 +54,6 @@ struct AboutTabView: View {
         .frame(maxWidth: .infinity, minHeight: 340, alignment: .center)
     }
 
-    private func open(_ url: URL) {
-        NSWorkspace.shared.open(url)
-    }
 }
 
 #if DEBUG
