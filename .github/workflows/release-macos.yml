@@ -35,8 +35,9 @@ jobs:
       - name: Bump version
         run: |
           sed -i.bak "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${{ inputs.version }};/g" apps/macos/Porchlight.xcodeproj/project.pbxproj
+          sed -i.bak "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${{ github.run_number }};/g" apps/macos/Porchlight.xcodeproj/project.pbxproj
           rm -f apps/macos/Porchlight.xcodeproj/project.pbxproj.bak
-          grep "MARKETING_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -2
+          grep "MARKETING_VERSION\|CURRENT_PROJECT_VERSION" apps/macos/Porchlight.xcodeproj/project.pbxproj | head -4
 
       - name: Commit, tag, and push
         run: |
