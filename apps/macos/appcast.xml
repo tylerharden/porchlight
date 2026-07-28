@@ -3,6 +3,14 @@
     <channel>
         <title>Porchlight</title>
         <item>
+            <title>1.0.3</title>
+            <pubDate>Tue, 28 Jul 2026 12:38:24 +0000</pubDate>
+            <sparkle:version>15</sparkle:version>
+            <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/tylerharden/porchlight/releases/download/macos-v1.0.3/Porchlight-1.0.3.dmg" length="5616569" type="application/octet-stream" sparkle:edSignature="MWjj3xScI97xGPif/V/NCTA1/9rb0qNop4HIXe8jijfK+xbslOfI9zpqe4kW+w/eB2YCXWniVk0cPWC+jGohCA=="/>
+        </item>
+        <item>
             <title>1.0.2</title>
             <pubDate>Mon, 27 Jul 2026 04:00:48 +0000</pubDate>
             <sparkle:version>1</sparkle:version>
