@@ -57,7 +57,7 @@ final class StatusBarController: NSObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.applyMenuVisibility()
+                self?.settingsDidChange()
             }
         }
         groupObserver = NotificationCenter.default.addObserver(
@@ -81,12 +81,24 @@ final class StatusBarController: NSObject {
     private func refreshLoop() async {
         await refresh()
 
-        while !Task.isCancelled {
+        while settings.autoRefresh && !Task.isCancelled {
             let interval = UInt64(max(1, settings.refreshInterval) * 1_000_000_000)
-            try? await Task.sleep(nanoseconds: interval)
-            if settings.autoRefresh {
-                scheduleRefresh()
+            do {
+                try await Task.sleep(nanoseconds: interval)
+            } catch {
+                return
             }
+
+            guard settings.autoRefresh, !Task.isCancelled else { return }
+            scheduleRefresh()
+        }
+    }
+
+    private func settingsDidChange() {
+        applyMenuVisibility()
+        refreshTask?.cancel()
+        refreshTask = Task { [weak self] in
+            await self?.refreshLoop()
         }
     }
 

@@ -122,7 +122,7 @@ struct Strings {
     
     struct Settings {
         static let general: String = "General:"
-        static let refresh: String = "Refresh server list"
+        static let refresh: String = "Continuously check for server changes"
         static let launchAtLogin: String = "Launch Porchlight at login"
         static let dock: String = "Dock:"
         static let hideAppIcon: String = "Hide app icon when all windows are closed"
@@ -143,8 +143,8 @@ struct Strings {
         static let reset: String = "Reset:"
         static let resetButton: String = "Reset Porchlight to Defaults"
         static let resetDescription: String = "Removes saved server history, pins, groups, classification rules, and settings."
-        static let every: String = "Every"
-        static let seconds: String = "seconds"
+        static let every: String = "Check every"
+        static let minutes: String = "minutes"
         static let resetConfirmation: String = "Reset Porchlight to defaults?"
         static let resetConfirmationMessage: String = "This removes saved server history, pins, groups, classification rules, and Porchlight settings."
         static let cancel: String = "Cancel"

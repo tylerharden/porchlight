@@ -9,7 +9,7 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings(defaults: defaults)
 
         XCTAssertTrue(settings.autoRefresh)
-        XCTAssertEqual(settings.refreshInterval, 2)
+        XCTAssertEqual(settings.refreshInterval, AppSettings.defaultRefreshInterval)
         XCTAssertTrue(settings.hideDockIcon)
         XCTAssertFalse(settings.hideMenuIconWhenEmpty)
         XCTAssertTrue(settings.showAutomaticGroups)
@@ -20,7 +20,7 @@ final class AppSettingsTests: XCTestCase {
     func testSettingsLoadPersistedValues() {
         let defaults = isolatedDefaults()
         defaults.set(false, forKey: "autoRefresh")
-        defaults.set(10.0, forKey: "refreshInterval")
+        defaults.set(600.0, forKey: "refreshInterval")
         defaults.set(false, forKey: "hideDockIcon")
         defaults.set(true, forKey: "hideMenuIconWhenEmpty")
         defaults.set(false, forKey: "showAutomaticGroups")
@@ -29,11 +29,21 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings(defaults: defaults)
 
         XCTAssertFalse(settings.autoRefresh)
-        XCTAssertEqual(settings.refreshInterval, 10)
+        XCTAssertEqual(settings.refreshInterval, 600)
         XCTAssertFalse(settings.hideDockIcon)
         XCTAssertTrue(settings.hideMenuIconWhenEmpty)
         XCTAssertFalse(settings.showAutomaticGroups)
         XCTAssertFalse(settings.showAppServices)
+    }
+
+    @MainActor
+    func testPersistedSubMinuteRefreshIntervalIsClamped() {
+        let defaults = isolatedDefaults()
+        defaults.set(2.0, forKey: "refreshInterval")
+
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertEqual(settings.refreshInterval, 60)
     }
 
     @MainActor

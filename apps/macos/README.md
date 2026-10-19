@@ -119,6 +119,10 @@ Groups uses `NavigationSplitView` with:
 
 Settings uses native SwiftUI controls for app preferences and server visibility management.
 
+Continuous server polling is enabled by default with a one-hour interval. It can be disabled
+entirely in Settings, or configured from one minute to 24 hours. Manual refresh remains available
+when continuous polling is disabled.
+
 The sidebar toggle is removed from split views so the sidebars stay visible in the app UI.
 
 ## Previews
