@@ -5,6 +5,7 @@ import ServiceManagement
 @Observable
 final class AppSettings {
     static let didChangeNotification = Notification.Name("PorchlightAppSettingsDidChange")
+    static let defaultRefreshInterval: Double = 3600
     private let defaults: UserDefaults
     private var isResetting = false
 
@@ -55,7 +56,8 @@ final class AppSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         autoRefresh = defaults.object(forKey: "autoRefresh") as? Bool ?? true
-        refreshInterval = defaults.object(forKey: "refreshInterval") as? Double ?? 2
+        let storedRefreshInterval = defaults.object(forKey: "refreshInterval") as? Double
+        refreshInterval = max(60, storedRefreshInterval ?? Self.defaultRefreshInterval)
         hideDockIcon = defaults.object(forKey: "hideDockIcon") as? Bool ?? true
         hideMenuIconWhenEmpty = defaults.object(forKey: "hideMenuIconWhenEmpty") as? Bool ?? false
         showAutomaticGroups = defaults.object(forKey: "showAutomaticGroups") as? Bool ?? true
@@ -120,7 +122,7 @@ final class AppSettings {
 
             isResetting = true
             autoRefresh = true
-            refreshInterval = 2
+            refreshInterval = Self.defaultRefreshInterval
             launchAtLogin = false
             hideDockIcon = true
             hideMenuIconWhenEmpty = false

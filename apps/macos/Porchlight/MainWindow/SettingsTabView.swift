@@ -14,7 +14,12 @@ struct SettingsTabView: View {
                     if settings.autoRefresh {
                         HStack(spacing: 12) {
                             Text(Strings.Settings.every)
-                            Stepper("\(Int(settings.refreshInterval)) \(Strings.Settings.seconds)", value: $settings.refreshInterval, in: 1...30, step: 1)
+                            Stepper(
+                                "\(max(1, Int(settings.refreshInterval / 60))) \(Strings.Settings.minutes)",
+                                value: $settings.refreshInterval,
+                                in: 60...86400,
+                                step: 60
+                            )
                         }
                         .padding(.leading, 20)
                     }
